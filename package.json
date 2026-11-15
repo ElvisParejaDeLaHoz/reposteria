@@ -1,6 +1,6 @@
 {
   "name": "elka-pedidos",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "private": true,
   "description": "Elka: pedidos y finanzas para emprendedoras y emprendedores (Google Apps Script)",
   "scripts": {

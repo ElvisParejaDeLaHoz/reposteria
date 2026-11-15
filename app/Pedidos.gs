@@ -80,8 +80,10 @@ function camposPedido_(p) {
     'Método de pago': p.pago,
     'Dirección': esDomicilio ? seguro_(p.direccion, TOPES.direccion) : '—',
     'Teléfono': seguro_(p.telefono, TOPES.telefono),
-    'Fecha entrega': p.fecha,
-    'Hora entrega': p.hora,
+    // El apóstrofo obliga a Sheets a guardarlas como texto: si no, "16:50" se vuelve una hora de reloj
+    // y al leerla se puede correr por la zona horaria del libro (pasó: 4:50 p. m. salía 11:58 a. m.).
+    'Fecha entrega': "'" + p.fecha,
+    'Hora entrega': "'" + p.hora,
     'Valor producto': producto,
     'Valor domicilio': domicilio,
     'Total': producto + domicilio,

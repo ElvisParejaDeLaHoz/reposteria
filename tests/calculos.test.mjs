@@ -187,3 +187,19 @@ test('firma de imágenes: no basta con decir que es JPG', () => {
   assert.equal(g.firmaImagen_([0x3C, 0x68, 0x74, 0x6D], 'image/jpeg'), false);
   assert.equal(g.firmaImagen_([0x89, 0x50, 0x4E, 0x47], 'image/png'), true);
 });
+
+test('fecha y hora de entrega se entienden como se vean en la hoja', () => {
+  const s = cargarServidor();
+  [['2026-11-15', '2026-11-15'], ["'2026-11-15", '2026-11-15'], ['15/11/2026', '2026-11-15'], ['5/1/2027', '2027-01-05'], ['', '']]
+    .forEach(([e, r]) => assert.equal(s.fechaDeTexto_(e), r, e));
+  [['16:55', '16:55'], ['16:55:00', '16:55'], ["'08:05", '08:05'], ['4:55 p. m.', '16:55'], ['4:55 PM', '16:55'], ['12:10 a. m.', '00:10'], ['12:30 p. m.', '12:30'], ['9:00', '09:00'], ['', '']]
+    .forEach(([e, r]) => assert.equal(s.horaDeTexto_(e), r, e));
+});
+
+test('momentos de la hoja: se entienden como los muestra (dd/mm/aaaa hh:mm[:ss])', () => {
+  const s = cargarServidor();
+  assert.equal(s.textoFechaHora_('15/11/2026 13:35:20'), '2026-11-15 13:35:20');
+  assert.equal(s.textoFechaHora_('5/1/2027 9:05'), '2027-01-05 09:05:00');
+  assert.equal(s.textoFechaHora_('2026-11-15'), '');
+  assert.equal(s.textoFechaHora_(''), '');
+});

@@ -249,6 +249,35 @@ function normCodigo_(v) {
  * `lista` son los usuarios que ya existen ({usuario, roles, activo}); `yo` es quien hace el cambio.
  * Reglas: nadie se quita a sí mismo el acceso de administradora y siempre queda al menos una activa.
  */
+/** Fecha como se ve en la hoja → 'yyyy-MM-dd'. Acepta "2026-11-15", "15/11/2026" y "'2026-11-15". */
+function fechaDeTexto_(v) {
+  const t = limpiar_(v).replace(/^'/, '');
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t);
+  if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return t;
+}
+
+/** Hora como se ve en la hoja → 'HH:mm'. Acepta "16:55", "16:55:00", "4:55 p. m.", "4:55 PM" y "'16:55". */
+function horaDeTexto_(v) {
+  const t = limpiar_(v).replace(/^'/, '').toLowerCase();
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap])?\.?\s*m?\.?/.exec(t);
+  if (!m) return t;
+  let h = Number(m[1]);
+  if (m[3] === 'p' && h < 12) h += 12;
+  if (m[3] === 'a' && h === 12) h = 0;
+  return ('0' + h).slice(-2) + ':' + m[2];
+}
+
+/** Fecha y hora como se ven en la hoja ("15/11/2026 13:35:20" o "15/11/2026 13:36") → 'yyyy-MM-dd HH:mm:ss', o '' si no se entiende. */
+function textoFechaHora_(v) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(limpiar_(v));
+  if (!m) return '';
+  const d = x => ('0' + x).slice(-2);
+  return m[3] + '-' + d(m[2]) + '-' + d(m[1]) + ' ' + d(m[4]) + ':' + m[5] + ':' + (m[6] || '00');
+}
+
 /** "Mujer", "m", "hombre", "H"… → 'Mujer' | 'Hombre' | '' (sin indicar). */
 function sexoDe_(v) {
   const t = norm_(v);

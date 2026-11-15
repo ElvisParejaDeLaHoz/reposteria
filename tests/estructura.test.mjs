@@ -105,3 +105,16 @@ test('ningún .gs y .html se llaman igual (Apps Script no deja subirlos)', () =>
   const repetidos = nombres.filter((n, i) => nombres.indexOf(n) !== i);
   assert.deepEqual(repetidos, [], 'nombres repetidos: ' + repetidos.join(', '));
 });
+
+test('fecha y hora de entrega se guardan como texto y se leen en la zona del libro (no se corren)', () => {
+  const todo = archivosGs().map(f => fs.readFileSync(path.join(APP, f), 'utf8')).join('\n');
+  assert.match(todo, /'Fecha entrega': "'" \+ p\.fecha/);
+  assert.match(todo, /'Hora entrega': "'" \+ p\.hora/);
+  const cuerpo = n => { const i = todo.indexOf('function ' + n + '('); return todo.slice(i, todo.indexOf('\n}', i)); };
+  assert.match(cuerpo('leerPedidos_'), /getDisplayValues\(\)/, 'fecha y hora se leen como se ven');
+  assert.match(cuerpo('leerPedidos_'), /fechaDeTexto_\(v\('Fecha entrega'\)\)/);
+  assert.match(cuerpo('leerPedidos_'), /horaDeTexto_\(v\('Hora entrega'\)\)/);
+  assert.match(cuerpo('leerPedidos_'), /registradoMs: t\('Registrado'\)/, 'los momentos se leen con instante_');
+  assert.doesNotMatch(cuerpo('leerPedidos_'), /hm_\(|ms_\(/, 'nada lee el valor crudo de Sheets');
+  assert.match(cuerpo('configuracionInicial'), /setSpreadsheetTimeZone\(Session\.getScriptTimeZone\(\)\)/);
+});

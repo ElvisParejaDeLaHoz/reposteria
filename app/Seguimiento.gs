@@ -72,7 +72,8 @@ function apiPublica_(e) {
   const q = (e && e.parameter) || {};
   try {
     if (q.api === 'logo') return json_(getLogo(q.v || ''));
-    const codigo = String(q.c || '');
+    // Ojo: Apps Script reserva los parámetros "c" y "sid" (responde 400 sin llegar aquí). Por eso es "codigo".
+    const codigo = String(q.codigo || '');
     if (!esCodigoSeguimiento_(codigo)) return json_({ ok: false, error: 'Este enlace no es válido. Pídele uno nuevo al negocio.' });
     if (q.api === 'seguimiento') return json_(estadoPublico_(codigo));
     if (q.api === 'foto') return json_(fotoPublica_(codigo));

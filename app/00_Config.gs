@@ -13,7 +13,7 @@
  */
 
 /* Versión del código: debe ser igual al archivo VERSION (lo revisan las pruebas). Se ve en Ajustes. */
-const VERSION_APP = '2.1.0';
+const VERSION_APP = '2.1.2';
 
 const NOMBRE_LIBRO = 'Mis pedidos';
 /* Nombres de fábrica (actual y de versiones anteriores): no cuentan como nombre del negocio. */

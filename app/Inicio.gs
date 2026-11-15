@@ -33,6 +33,8 @@ function configuracionInicial() {
   soloDueno_();
   secreto_();
   const ss = obtenerLibro_();
+  // El libro en la misma zona horaria del proyecto (Colombia): así las horas de la hoja y de la app coinciden.
+  if (ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone()) ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
   abrirPedidos_();
   abrirUsuarios_();
   if (!ss.getSheetByName(HOJA_STATS)) prepararEstadisticas_(ss);

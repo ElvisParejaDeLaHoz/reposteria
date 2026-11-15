@@ -22,21 +22,43 @@ function escribir_(hoja, m, fila, datos) {
   Object.keys(datos).forEach(k => { if (m[k]) hoja.getRange(fila, m[k]).setValue(datos[k]); });
 }
 
+/* Zona horaria del libro. Una fecha u hora escrita en una celda (sin instante real) se lee en la zona
+   del libro, no en la del proyecto: si son distintas, leerla con la del proyecto la corre varias horas. */
+let ZONA_LIBRO_ = '';
+function zonaLibro_() {
+  if (!ZONA_LIBRO_) {
+    try { ZONA_LIBRO_ = obtenerLibro_().getSpreadsheetTimeZone(); } catch (e) { ZONA_LIBRO_ = ''; }
+    ZONA_LIBRO_ = ZONA_LIBRO_ || Session.getScriptTimeZone();
+  }
+  return ZONA_LIBRO_;
+}
+
 function aTextoFecha_(v) {
-  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  return limpiar_(v);
+  if (v instanceof Date) return Utilities.formatDate(v, zonaLibro_(), 'yyyy-MM-dd');
+  return limpiar_(v).replace(/^'/, '');
 }
 
 function aTextoHora_(v) {
-  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'HH:mm');
-  return limpiar_(v);
+  if (v instanceof Date) return Utilities.formatDate(v, zonaLibro_(), 'HH:mm');
+  return limpiar_(v).replace(/^'/, '');
 }
 
 function ms_(v) { return v instanceof Date ? v.getTime() : 0; }
 
-function hm_(v) {
-  return v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'HH:mm') : '';
+/**
+ * Momento guardado en la hoja (Registrado, Listo el…), leído desde lo que la hoja muestra y su zona horaria.
+ * El valor que entrega getValues() salió corrido 8 horas en un libro creado por la flota (zona del Pacífico),
+ * así que solo se usa si la celda no tiene el formato de siempre (dd/mm/aaaa hh:mm).
+ */
+function instante_(valor, texto) {
+  if (valor === '' || valor == null) return 0;
+  const t = textoFechaHora_(texto);
+  if (t) { try { return Utilities.parseDate(t, zonaLibro_(), 'yyyy-MM-dd HH:mm:ss').getTime(); } catch (e) { /* abajo */ } }
+  return ms_(valor);
 }
+
+function hmDe_(ms) { return ms ? Utilities.formatDate(new Date(ms), Session.getScriptTimeZone(), 'HH:mm') : ''; }
+
 
 /**
  * El libro de datos. Si el proyecto está pegado a una hoja (así lo instala la herramienta
@@ -85,9 +107,14 @@ function leerPedidos_() {
   if (n >= 1) {
     const vals = hoja.getRange(2, 1, n, hoja.getLastColumn()).getValues();
     const g = (f, k) => f[m[k] - 1];
+    // Fechas y horas: se lee también el texto tal como se ve en la hoja. Leer el valor de Sheets dependía de zonas
+    // horarias y se corría (4:55 p. m. salía 11:58 a. m. del día anterior; 4:35 p. m. salía 8:35 a. m.).
+    const ver = hoja.getRange(2, 1, n, hoja.getLastColumn()).getDisplayValues();
     vals.forEach((f, i) => {
       if (!g(f, 'ID')) return;
-      const reg = g(f, 'Registrado');
+      const v = k => ver[i][m[k] - 1];
+      const t = k => instante_(g(f, k), v(k));
+      const prep = t('Inicio preparación'), listo = t('Listo el'), salio = t('Salió el'), entregado = t('Entregado el');
       const total = Number(g(f, 'Total')) || 0;
       // Los pedidos de antes de llevar abonos tienen la celda vacía: no se les cobra saldo.
       const ab = g(f, 'Abonado');
@@ -100,7 +127,7 @@ function leerPedidos_() {
         costo: Number(g(f, 'Costo')) || 0,
         fila: i + 2,
         id: String(g(f, 'ID')),
-        registradoMs: reg instanceof Date ? reg.getTime() : 0,
+        registradoMs: t('Registrado'),
         vendedora: limpiar_(g(f, 'Vendedora')),
         medio: limpiar_(g(f, 'Medio de venta')),
         cliente: limpiar_(g(f, 'Cliente')),
@@ -110,8 +137,8 @@ function leerPedidos_() {
         pago: limpiar_(g(f, 'Método de pago')),
         direccion: limpiar_(g(f, 'Dirección')),
         telefono: limpiar_(g(f, 'Teléfono')),
-        fecha: aTextoFecha_(g(f, 'Fecha entrega')),
-        hora: aTextoHora_(g(f, 'Hora entrega')),
+        fecha: fechaDeTexto_(v('Fecha entrega')),
+        hora: horaDeTexto_(v('Hora entrega')),
         valorProducto: Number(g(f, 'Valor producto')) || 0,
         valorDomicilio: Number(g(f, 'Valor domicilio')) || 0,
         total: total,
@@ -119,21 +146,21 @@ function leerPedidos_() {
         textoDedicatoria: limpiar_(g(f, 'Texto dedicatoria')),
         estado: normEstado_(g(f, 'Estado')),
         decorador: limpiar_(g(f, 'Decorador')),
-        inicioPrep: hm_(g(f, 'Inicio preparación')),
-        listoEl: hm_(g(f, 'Listo el')),
+        inicioPrep: hmDe_(prep),
+        listoEl: hmDe_(listo),
         entregador: limpiar_(g(f, 'Entregó')),
-        salioEl: hm_(g(f, 'Salió el')),
-        entregadoEl: hm_(g(f, 'Entregado el')),
+        salioEl: hmDe_(salio),
+        entregadoEl: hmDe_(entregado),
         recibio: limpiar_(g(f, 'Recibió')),
         evidencia: limpiar_(g(f, 'Evidencia')),
         conEvidencia: !!limpiar_(g(f, 'Evidencia')),
         cancelacion: limpiar_(g(f, 'Cancelación')),
-        editadoMs: ms_(g(f, 'Editado el')),
+        editadoMs: t('Editado el'),
         editadoPor: limpiar_(g(f, 'Editó')),
-        inicioPrepMs: ms_(g(f, 'Inicio preparación')),
-        listoMs: ms_(g(f, 'Listo el')),
-        salioMs: ms_(g(f, 'Salió el')),
-        entregadoMs: ms_(g(f, 'Entregado el')),
+        inicioPrepMs: prep,
+        listoMs: listo,
+        salioMs: salio,
+        entregadoMs: entregado,
         seguimiento: limpiar_(g(f, 'Seguimiento'))
       });
     });

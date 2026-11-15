@@ -151,3 +151,11 @@ test('sin marca, el femenino se adivina igual que en la app; la marca (m) o (f) 
   assert.deepEqual(g.terminoProducto_('día (m)'), { singular: 'día', plural: 'días', femenino: false });
   assert.equal(g.terminoProducto_('ramo (f)').femenino, true);
 });
+
+test('la página no usa los parámetros que Apps Script reserva (c, sid): Google respondería 400', () => {
+  const llamadas = [...PAGINA.matchAll(/pedir\('([^']+)'/g)].map(m => m[1]);
+  assert.ok(llamadas.length >= 4);
+  llamadas.forEach(q => assert.doesNotMatch(q, /(^|&)(c|sid)=/, q));
+  assert.match(cuerpo('apiPublica_'), /q\.codigo/);
+  assert.doesNotMatch(cuerpo('apiPublica_'), /q\.(c|sid)\b/);
+});
