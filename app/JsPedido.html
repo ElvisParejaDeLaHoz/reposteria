@@ -1,0 +1,329 @@
+/* JsPedido: Formulario para tomar y editar pedidos, con los turnos del día.
+   Se mete dentro del mismo (function () { ... })() de Index.html: comparte sus variables. */
+      /* ---------- Tomar pedido ---------- */
+      function cargarDia(fecha, silencioso) {
+        if (!fecha) { renderDia(); return; }
+        if (!silencioso) renderDia();
+        api('getDia', [fecha]).then(function (r) {
+          if (r && r.ok) {
+            cacheDia[fecha] = r.pedidos;
+            if (f.fecha.value === fecha && S.modulo === 'pedido') renderDia();
+          }
+        }).catch(function (e) {
+          if (e && e.message !== 'sesion' && !silencioso) toast('No se pudieron cargar los turnos del día.', true);
+        });
+      }
+
+      function colaDelDia() {
+        var lista = cacheDia[f.fecha.value];
+        return lista ? lista.filter(function (o) { return enCola(o) && !(edicion && o.id === edicion.id); }) : null;
+      }
+
+      function renderDia() {
+        var fecha = f.fecha.value, hora = f.hora.value;
+        var cola = colaDelDia();
+        var ul = $('#dia-lista');
+        ul.textContent = '';
+        $('#dia-fecha').textContent = fecha ? cap(fmtFecha(fecha)) : '';
+        if (!cola) {
+          $('#dia-cuenta').textContent = '';
+          ul.appendChild(el('li', 'item vacio', fecha ? 'Cargando turnos…' : 'Elige una fecha para ver los turnos.'));
+          actualizarAviso();
+          return;
+        }
+        var hechos = cacheDia[fecha].filter(function (o) { return !enCola(o); }).length;
+        $('#dia-cuenta').textContent = cola.length ? cola.length + ' por hacer' : 'Sin turnos';
+
+        var items = cola.map(function (o) { return { nuevo: false, o: o, hora: o.hora }; });
+        if (hora) items.push({ nuevo: true, hora: hora });
+        items.sort(function (a, b) {
+          if (a.hora !== b.hora) return a.hora < b.hora ? -1 : 1;
+          return a.nuevo === b.nuevo ? 0 : (a.nuevo ? 1 : -1);
+        });
+
+        if (!items.length) ul.appendChild(el('li', 'item vacio', 'No hay turnos para este día.'));
+        items.forEach(function (it, i) {
+          var li;
+          if (it.nuevo) {
+            li = el('li', 'item nuevo');
+            li.appendChild(el('span', 'n', String(i + 1)));
+            li.appendChild(el('span', 'hora', fmtHora(it.hora)));
+            li.appendChild(el('span', 'quien', 'Este pedido'));
+          } else {
+            li = el('li', 'item' + (hora && it.hora === hora ? ' mismo' : ''));
+            li.appendChild(el('span', 'n', String(i + 1)));
+            li.appendChild(el('span', 'hora', fmtHora(it.o.hora)));
+            var q = el('span', 'quien', it.o.cliente);
+            q.appendChild(el('i', null, ' para ' + it.o.para));
+            li.appendChild(q);
+            li.appendChild(libre(el('p', 'det', it.o.descripcion)));
+          }
+          ul.appendChild(li);
+        });
+        if (hechos > 0) ul.appendChild(el('li', 'item vacio', plural(hechos, 'pedido ya está listo o entregado', 'pedidos ya están listos o entregados') + '.'));
+        actualizarAviso();
+      }
+
+      function actualizarAviso() {
+        var box = $('#aviso');
+        var cola = colaDelDia();
+        var hora = f.hora.value;
+        box.textContent = '';
+        box.className = 'aviso';
+        if (!cola || !hora || !f.fecha.value) { box.hidden = true; return; }
+        box.hidden = false;
+        var antes = cola.filter(function (o) { return o.hora <= hora; }).length;
+        var mismos = cola.filter(function (o) { return o.hora === hora; }).length;
+        var turno = antes + 1;
+        if (mismos > 0) {
+          box.classList.add('mismo');
+          box.appendChild(el('strong', null, sinPuntosDobles('Ya hay ' + plural(mismos, 'pedido', 'pedidos') + ' para las ' + fmtHora(hora) + '. ')));
+          box.appendChild(document.createTextNode('Este queda en el turno ' + turno + '. El decorador los hace por orden de llegada.'));
+        } else {
+          box.appendChild(el('strong', null, 'Turno ' + turno + ' de ese día. '));
+          box.appendChild(document.createTextNode(antes === 0 ? 'Es el primero en la cola.' : 'Antes van ' + plural(antes, 'pedido', 'pedidos') + '.'));
+        }
+      }
+
+      function actualizarEntregaForm() {
+        var dom = valor(f, 'entrega') === 'Domicilio';
+        $('#bloque-direccion').hidden = !dom;
+        $('#bloque-domicilio').hidden = !dom;
+        var local = valor(f, 'entrega') === 'Local';
+        $('#telefono-etq').textContent = local ? 'Teléfono del cliente (opcional)' : 'Teléfono de quien recibe';
+        $('#telefono-ayuda').textContent = local
+          ? 'Sirve para avisarle cuando el arreglo esté listo.'
+          : 'El entregador lo usa para llamar al llegar.';
+        calcTotal();
+      }
+      function actualizarDedic() { $('#bloque-dedic').hidden = valor(f, 'dedicatoria') !== 'Sí'; }
+      function totalForm() {
+        var p = digitos(f.valorProducto.value);
+        var d = valor(f, 'entrega') === 'Domicilio' ? digitos(f.valorDomicilio.value) : 0;
+        return p + d;
+      }
+      function calcTotal() {
+        var t = totalForm();
+        $('#total').textContent = fmtDinero(t);
+        var s = $('#saldo-form');
+        if (edicion || !t) { s.hidden = true; return; }
+        var ab = digitos(f.abono.value);
+        s.hidden = false;
+        s.classList.toggle('debe', ab < t);
+        s.textContent = ab >= t ? 'Pagado completo' : (ab > 0 ? 'Abonó ' + fmtDinero(ab) + ' · queda debiendo ' + fmtDinero(t - ab) : 'Paga todo al recibir: ' + fmtDinero(t));
+      }
+      function esAdminUI() { return !!S.user && S.user.roles.indexOf('Administrador') >= 0; }
+      function formatearDinero(input) {
+        var n = digitos(input.value);
+        input.value = n ? n.toLocaleString('es-CO') : '';
+      }
+      function actualizarContador() {
+        var n = f.descripcion.value.trim().length;
+        $('#cuenta-desc').textContent = n === 0
+          ? ((S.config && S.config.terminos && S.config.terminos.pista) || 'Describe el pedido con todos los detalles.')
+          : (n < MIN_DESC ? n + ' de ' + MIN_DESC + ' caracteres mínimos' : n + ' caracteres');
+      }
+
+      function reiniciarFormulario(todo) {
+        var fecha = todo ? hoyISO() : f.fecha.value;
+        f.reset();
+        f.fecha.value = fecha;
+        f.fecha.min = hoyISO();
+        f.hora.value = '';
+        $$('.campo.err', f).forEach(function (w) { w.classList.remove('err'); });
+        f.abono.disabled = false;
+        $('#abono-ayuda').textContent = 'Déjalo en 0 si paga todo al recibir.';
+        $('#bloque-costo').hidden = !esAdminUI();
+        actualizarEntregaForm();
+        actualizarDedic();
+        actualizarContador();
+        calcTotal();
+      }
+
+      function marcar(node, msg) {
+        var w = node.closest('.campo');
+        w.classList.add('err');
+        w.querySelector('.msg').textContent = msg;
+      }
+      function limpiarError(node) {
+        var w = node.closest && node.closest('.campo');
+        if (!w) return;
+        w.classList.remove('err');
+        var m = w.querySelector('.msg');
+        if (m) m.textContent = '';
+      }
+
+      function validar() {
+        var primero = null;
+        function fallo(node, msg, foco) { marcar(node, msg); if (!primero) primero = foco || node; }
+        $$('.campo.err', f).forEach(function (w) { w.classList.remove('err'); });
+
+        if (!valor(f, 'medio')) fallo($('#g-medio'), 'Elige por qué medio llegó el pedido.', f.querySelector('input[name="medio"]'));
+        if (f.cliente.value.trim().length < 2) fallo(f.cliente, 'Escribe el nombre de quien hace el pedido.');
+        if (f.para.value.trim().length < 2) fallo(f.para, 'Escribe para quién va dirigido.');
+        if (f.descripcion.value.trim().length < MIN_DESC) fallo(f.descripcion, 'Describe el arreglo con más detalle (mínimo ' + MIN_DESC + ' caracteres).');
+
+        var entrega = valor(f, 'entrega');
+        if (!entrega) fallo($('#g-entrega'), 'Elige cómo se entrega.', f.querySelector('input[name="entrega"]'));
+        if (entrega === 'Domicilio' && f.direccion.value.trim().length < 5) fallo(f.direccion, 'Escribe la dirección de entrega.');
+        var tel = f.telefono.value.trim(), dg = soloDigitos(tel);
+        if (entrega === 'Domicilio' && !tel) fallo(f.telefono, 'Escribe el teléfono de quien recibe.');
+        else if (tel && (dg.length < 7 || dg.length > 15)) fallo(f.telefono, 'Escribe un teléfono válido, con 7 a 15 números.');
+
+        if (!f.fecha.value) fallo(f.fecha, 'Elige la fecha de entrega.');
+        else if (!edicion && f.fecha.value < hoyISO()) fallo(f.fecha, 'Esa fecha ya pasó. Elige hoy o una fecha futura.');
+        if (!f.hora.value) fallo(f.hora, 'Elige la hora de entrega.');
+
+        if (!valor(f, 'dedicatoria')) fallo($('#g-dedicatoria'), 'Indica si lleva dedicatoria.', f.querySelector('input[name="dedicatoria"]'));
+        if (valor(f, 'dedicatoria') === 'Sí' && f.textoDedicatoria.value.trim().length < 2) fallo(f.textoDedicatoria, 'Escribe el texto de la dedicatoria.');
+
+        if (!valor(f, 'pago')) fallo($('#g-pago'), 'Elige el método de pago.', f.querySelector('input[name="pago"]'));
+        if (digitos(f.valorProducto.value) <= 0) fallo(f.valorProducto, 'Escribe el valor del producto.');
+        if (entrega === 'Domicilio' && f.valorDomicilio.value.trim() === '') fallo(f.valorDomicilio, 'Escribe el valor del domicilio. Si es gratis, pon 0.');
+        if (!edicion && digitos(f.abono.value) > totalForm()) fallo(f.abono, 'El abono no puede ser mayor que el total (' + fmtDinero(totalForm()) + ').');
+        return primero;
+      }
+
+      /* ---------- Editar un pedido ---------- */
+      function marcarRadio(name, v) {
+        var r = f.querySelector('input[name="' + name + '"][value="' + v + '"]');
+        if (r) r.checked = true;
+      }
+      function dineroTexto(n) { return n ? Number(n).toLocaleString('es-CO') : ''; }
+
+      function empezarEdicion(p) {
+        edicion = { id: p.id, estado: p.estado };
+        f.reset();
+        f.fecha.min = '';
+        asegurarOpcion('medio', p.medio);
+        marcarRadio('medio', p.medio);
+        f.cliente.value = p.cliente;
+        f.para.value = p.para;
+        f.descripcion.value = p.descripcion;
+        marcarRadio('entrega', p.entrega);
+        f.direccion.value = p.entrega === 'Domicilio' ? p.direccion : '';
+        f.telefono.value = p.telefono || '';
+        f.fecha.value = p.fecha;
+        f.hora.value = p.hora;
+        marcarRadio('dedicatoria', p.dedicatoria);
+        f.textoDedicatoria.value = p.textoDedicatoria || '';
+        asegurarOpcion('pago', p.pago);
+        marcarRadio('pago', p.pago);
+        f.valorProducto.value = dineroTexto(p.valorProducto);
+        f.valorDomicilio.value = p.entrega === 'Domicilio' ? String(dineroTexto(p.valorDomicilio) || '0') : '';
+        // Los pagos no se cambian al editar: se registran aparte, para que queden en Movimientos.
+        f.abono.value = p.controlPago ? dineroTexto(p.abonado) : '';
+        f.abono.disabled = true;
+        $('#abono-ayuda').textContent = 'Los pagos nuevos se registran desde Mis pedidos con "Registrar pago".';
+        f.costo.value = p.costo ? dineroTexto(p.costo) : '';
+        $('#bloque-costo').hidden = !esAdminUI();
+        $$('.campo.err', f).forEach(function (w) { w.classList.remove('err'); });
+        actualizarEntregaForm();
+        actualizarDedic();
+        actualizarContador();
+        calcTotal();
+
+        var nota = $('#nota-edicion');
+        nota.textContent = '';
+        nota.appendChild(el('strong', null, 'Editando el pedido de ' + p.cliente + ' para ' + p.para + '.'));
+        nota.appendChild(document.createTextNode(' Solo se puede editar mientras el decorador no lo haya empezado.'));
+        nota.hidden = false;
+        $('#guardar').textContent = 'Guardar cambios';
+        $('#cancelar-edicion').hidden = false;
+        abrirModulo('pedido');
+        window.scrollTo({ top: 0 });
+      }
+
+      function salirEdicion() {
+        if (!edicion) return;
+        edicion = null;
+        $('#nota-edicion').hidden = true;
+        $('#guardar').textContent = 'Guardar pedido';
+        $('#cancelar-edicion').hidden = true;
+        reiniciarFormulario(true);
+        if (S.modulo === 'pedido') pintarCabecera('pedido');
+      }
+
+      $('#cancelar-edicion').addEventListener('click', function () {
+        salirEdicion();
+        abrirModulo('seguimiento');
+      });
+
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (guardando) return;
+        var primero = validar();
+        if (primero) {
+          primero.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          primero.focus({ preventScroll: true });
+          return;
+        }
+        var dom = valor(f, 'entrega') === 'Domicilio';
+        var payload = {
+          medio: valor(f, 'medio'),
+          cliente: f.cliente.value.trim(),
+          para: f.para.value.trim(),
+          descripcion: f.descripcion.value.trim(),
+          entrega: valor(f, 'entrega'),
+          pago: valor(f, 'pago'),
+          direccion: dom ? f.direccion.value.trim() : '',
+          telefono: f.telefono.value.trim(),
+          fecha: f.fecha.value,
+          hora: f.hora.value,
+          valorProducto: digitos(f.valorProducto.value),
+          valorDomicilio: dom ? digitos(f.valorDomicilio.value) : 0,
+          dedicatoria: valor(f, 'dedicatoria'),
+          textoDedicatoria: valor(f, 'dedicatoria') === 'Sí' ? f.textoDedicatoria.value.trim() : '',
+          abono: edicion ? 0 : digitos(f.abono.value)
+        };
+        if (esAdminUI()) payload.costo = digitos(f.costo.value);
+        var b = $('#guardar');
+        guardando = true;
+        b.disabled = true;
+        b.textContent = 'Guardando…';
+        function terminar() { guardando = false; b.disabled = false; b.textContent = edicion ? 'Guardar cambios' : 'Guardar pedido'; }
+
+        var editando = edicion;
+        api(editando ? 'editarPedido' : 'guardarPedido', editando ? [editando.id, payload] : [payload]).then(function (r) {
+          terminar();
+          if (!r || !r.ok) {
+            toast((r && r.error) || 'No se pudo guardar el pedido.', true);
+            if (r && r.actualizar) refrescarTablero(true);
+            return;
+          }
+          if (editando) {
+            salirEdicion();
+            aplicarTablero(r.tablero, true);
+            cargarDia(payload.fecha, true);
+            toast(r.aviso || 'Cambios guardados.');
+            abrirModulo('seguimiento');
+            return;
+          }
+          var fecha = payload.fecha;
+          reiniciarFormulario(false);
+          cargarDia(fecha);
+          refrescarTablero(true);
+          toast('Pedido guardado. Quedó en el turno ' + r.turno + ' del ' + fmtFecha(fecha) + '.');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }).catch(function (err) {
+          terminar();
+          if (err && err.message !== 'sesion') toast('No se pudo guardar el pedido. Revisa tu conexión e inténtalo de nuevo.', true);
+        });
+      });
+
+      f.addEventListener('input', function (e) { limpiarError(e.target); });
+      f.addEventListener('change', function (e) { limpiarError(e.target); });
+      f.fecha.addEventListener('change', function () { cargarDia(f.fecha.value); });
+      f.hora.addEventListener('input', renderDia);
+      f.hora.addEventListener('change', renderDia);
+      Array.prototype.forEach.call(f.querySelectorAll('input[name="entrega"]'), function (r) { r.addEventListener('change', actualizarEntregaForm); });
+      Array.prototype.forEach.call(f.querySelectorAll('input[name="dedicatoria"]'), function (r) { r.addEventListener('change', actualizarDedic); });
+      ['valorProducto', 'valorDomicilio', 'abono', 'costo'].forEach(function (id) {
+        f[id].addEventListener('input', function () { formatearDinero(f[id]); calcTotal(); });
+      });
+      /* "Ya pagado" = pagó todo: se llena el abono con el total. */
+      $('#lista-pago').addEventListener('change', function (e) {
+        if (e.target.value === 'Ya pagado' && !edicion) { f.abono.value = dineroTexto(totalForm()); calcTotal(); }
+      });
+      f.descripcion.addEventListener('input', actualizarContador);
+

@@ -1,0 +1,7 @@
+# Carpetas de trabajo de clasp (se reconstruyen solas desde el registro)
+.flota/
+
+# Registro de negocios: ids de hojas y proyectos. NO es público. Haz copia en un lugar privado.
+flota/clientes.json
+
+node_modules/

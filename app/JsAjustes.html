@@ -1,0 +1,272 @@
+/* JsAjustes: la administradora cambia los datos del negocio, el logo y su equipo desde la app, sin abrir la hoja.
+   Se mete dentro del mismo (function () { ... })() de Index.html: comparte sus variables. */
+      var AJ = { datos: null, vista: 'negocio', seq: 0, n: 0, editando: null };
+      var ROL_AYUDA = {
+        Vendedora: 'Toma los pedidos y registra los pagos.',
+        Decorador: 'Prepara los pedidos por turnos.',
+        Entregador: 'Entrega los pedidos y toma la foto.',
+        Administrador: 'Ve ventas, finanzas y ajustes.'
+      };
+
+      /** El nombre que el negocio le puso a cada tarea (Configuración → "Rol: quien vende"…). */
+      function nombreRol(r) {
+        var T = (S.config && S.config.terminos) || {};
+        var t = { Vendedora: T.vende, Decorador: T.prepara, Entregador: T.entrega, Administrador: T.admin }[r] || r;
+        return String(t).split(',')[0].replace(/\((f|m)\)\s*$/i, '').trim() || r;
+      }
+
+      function reiniciarAjustes() {
+        AJ.datos = null; AJ.seq++; AJ.vista = 'negocio'; AJ.editando = null;
+        $('#aj-contenido').textContent = '';
+        $('input[name="aj-vista"][value="negocio"]').checked = true;
+        $('#ajustes').hidden = true;
+      }
+
+      /** Si probó colores y salió sin guardar, vuelven los colores guardados. */
+      function soltarPruebaColores() {
+        if (!AJ.probando) return;
+        AJ.probando = false;
+        if (S.user && S.user.config) aplicarConfig(S.user.config, false);
+      }
+
+      function cargarAjustes() {
+        var mi = ++AJ.seq;
+        var c = $('#aj-contenido');
+        if (!AJ.datos) { c.textContent = ''; c.appendChild(vacio('Cargando ajustes…')); }
+        api('getAjustes').then(function (r) {
+          if (mi !== AJ.seq) return;
+          if (r && r.ok) { AJ.datos = r; renderAjustes(); }
+          else if (r && r.error) toast(r.error, true);
+        }).catch(function (e) {
+          if (e && e.message !== 'sesion') toast('No se pudieron cargar los ajustes. Revisa tu conexión.', true);
+        });
+      }
+
+      $$('input[name="aj-vista"]').forEach(function (r) {
+        r.addEventListener('change', function () { AJ.vista = r.value; renderAjustes(); });
+      });
+
+      function renderAjustes() {
+        var c = $('#aj-contenido');
+        c.textContent = '';
+        if (!AJ.datos) return;
+        if (AJ.vista === 'equipo') ajEquipo(c); else ajNegocio(c);
+      }
+
+      /** Campo con etiqueta: devuelve el contenedor; el control queda conectado a su etiqueta. */
+      function ajCampo(etq, control, ayuda) {
+        var w = el('div', 'campo');
+        control.id = 'aj-campo-' + (++AJ.n);
+        var l = el('label', 'etq', etq); l.htmlFor = control.id;
+        w.appendChild(l);
+        w.appendChild(control);
+        if (ayuda) w.appendChild(el('p', 'ayuda', ayuda));
+        return w;
+      }
+      function ajTexto(valor, max, tipo) {
+        var i = el(tipo === 'area' ? 'textarea' : 'input', 'ctl');
+        if (tipo === 'area') i.rows = 3; else i.type = tipo || 'text';
+        if (max) i.maxLength = max;
+        i.value = valor == null ? '' : valor;
+        return libre(i);
+      }
+
+      /* --- Mi negocio --- */
+      function ajNegocio(c) {
+        var n = AJ.datos.negocio;
+        var campos = {};
+        var colores = { principal: n.principal, secundario: n.secundario };
+
+        var p1 = panel('Cómo se ve tu app', 'Lo que ven tú y tu equipo al entrar.');
+        campos.nombre = ajTexto(n.nombre, 60);
+        p1.appendChild(ajCampo('Nombre del negocio', campos.nombre));
+        campos.lema = ajTexto(n.lema, 120);
+        p1.appendChild(ajCampo('Frase de bienvenida (opcional)', campos.lema, 'Sale bajo el nombre, en la pantalla de entrada.'));
+        [['principal', 'Color principal', 'Botones y resaltados.'], ['secundario', 'Color secundario', 'Pestaña activa y tarjetas oscuras. Mejor un color oscuro.']].forEach(function (x) {
+          var fs = el('fieldset', 'campo');
+          fs.appendChild(el('legend', 'etq', x[1]));
+          var cont = el('div', 'bv-colores');
+          selectorColor(cont, colores[x[0]], 'aj-color-' + x[0], function (col) {
+            colores[x[0]] = col;
+            var prueba = {}; prueba[x[0]] = col;
+            S.config = Object.assign({}, S.config || CFG_DEF, prueba);
+            AJ.probando = true;
+            aplicarModo();
+          });
+          fs.appendChild(cont);
+          fs.appendChild(el('p', 'ayuda', x[2]));
+          p1.appendChild(fs);
+        });
+
+        var lc = el('div', 'campo');
+        var etqLogo = el('span', 'etq', 'Logo');
+        etqLogo.id = 'aj-logo-etq';
+        lc.appendChild(etqLogo);
+        var zona = el('label', 'foto-zona logo-zona');
+        var file = el('input', 'sr-only'); file.type = 'file'; file.accept = 'image/png,image/jpeg,image/webp';
+        file.setAttribute('aria-labelledby', 'aj-logo-etq');
+        var txt = el('span', null, 'Tocar para elegir una imagen');
+        var previa = el('img', 'logo-previa'); previa.alt = 'Logo actual'; previa.hidden = true;
+        var actual = $('#logo-cab');
+        if (actual && actual.getAttribute('src')) { previa.src = actual.src; previa.hidden = false; txt.textContent = 'Tocar para cambiarlo'; }
+        zona.appendChild(file); zona.appendChild(txt); zona.appendChild(previa);
+        lc.appendChild(zona);
+        var estadoLogo = el('p', 'ayuda', 'Se guarda apenas lo eliges.');
+        lc.appendChild(estadoLogo);
+        elegirLogo(file, previa, txt, function (logo) {
+          estadoLogo.textContent = 'Subiendo logo…';
+          api('subirLogo', [{ mime: logo.mime, base64: logo.base64 }]).then(function (r) {
+            if (r && r.ok) { estadoLogo.textContent = 'Logo guardado.'; cargarLogo(); }
+            else { estadoLogo.textContent = (r && r.error) || 'No se pudo guardar el logo.'; }
+          }).catch(function (e) { if (e && e.message !== 'sesion') estadoLogo.textContent = 'No se pudo subir. Revisa tu conexión.'; });
+        });
+        p1.appendChild(lc);
+        c.appendChild(p1);
+
+        var p2 = panel('Lo que vendes', 'Cómo llegan los pedidos y cómo te pagan.');
+        campos.producto = ajTexto(n.producto, 40);
+        p2.appendChild(ajCampo('¿Qué vendes? (en singular)', campos.producto, 'Ej. torta, ramo, almuerzo. Si es femenino pon (f) al final: "torta (f)". Si el plural no es con "s", escríbelo después de una coma: "pan, panes".'));
+        campos.medios = ajTexto(n.medios, 600, 'area');
+        p2.appendChild(ajCampo('Por dónde llegan los pedidos', campos.medios, 'Sepáralos con comas. Ej. WhatsApp, Instagram, En el local.'));
+        campos.pagos = ajTexto(n.pagos, 600, 'area');
+        p2.appendChild(ajCampo('Cómo te pagan', campos.pagos, 'Sepáralos con comas. Ej. Efectivo, Nequi, Transferencia.'));
+        campos.minDesc = ajTexto(n.minDesc, 3, 'number');
+        campos.minDesc.min = 1; campos.minDesc.max = 200; campos.minDesc.inputMode = 'numeric';
+        p2.appendChild(ajCampo('Mínimo de letras en la descripción del pedido', campos.minDesc, 'En un restaurante, 3 basta ("1 corriente"). En una floristería, 20 obliga a dar detalles.'));
+        c.appendChild(p2);
+
+        var p3 = panel('Tus gastos', 'Las categorías que aparecen al registrar un gasto.');
+        campos.categorias = ajTexto(n.categorias, 1200, 'area');
+        campos.categorias.rows = 4;
+        p3.appendChild(ajCampo('Categorías de gastos', campos.categorias, 'Sepáralas con comas.'));
+        c.appendChild(p3);
+
+        var g = el('button', 'guardar ancho', 'Guardar cambios');
+        g.type = 'button';
+        g.addEventListener('click', function () {
+          var datos = {
+            nombre: campos.nombre.value, lema: campos.lema.value, principal: colores.principal, secundario: colores.secundario,
+            producto: campos.producto.value, medios: campos.medios.value, pagos: campos.pagos.value,
+            categorias: campos.categorias.value, minDesc: Number(campos.minDesc.value)
+          };
+          g.disabled = true; g.textContent = 'Guardando…';
+          api('guardarNegocio', [datos]).then(function (r) {
+            g.disabled = false; g.textContent = 'Guardar cambios';
+            if (r && r.ok) {
+              aplicarConfig(r.config, true);
+              if (S.user) S.user.config = r.config;
+              AJ.probando = false;
+              AJ.datos = null;
+              cargarAjustes();
+              FIN.datos = null; FIN.json = '';
+              toast('Guardado. Tu equipo verá los cambios la próxima vez que abra la app.');
+            } else toast((r && r.error) || 'No se pudo guardar.', true);
+          }).catch(function (e) { g.disabled = false; g.textContent = 'Guardar cambios'; if (e && e.message !== 'sesion') toast('No se pudo guardar. Revisa tu conexión.', true); });
+        });
+        c.appendChild(g);
+      }
+
+      /* --- Mi equipo --- */
+      function ajEquipo(c) {
+        var p = panel('Tu equipo', 'Quién entra a la app y qué hace cada persona. Si alguien deja de trabajar contigo, desactívala: sus pedidos y su historial se conservan.');
+        var mas = el('button', 'guardar', '+ Agregar persona');
+        mas.type = 'button';
+        mas.addEventListener('click', function () { abrirUsuario(null); });
+        p.appendChild(mas);
+        var lista = el('ul', 'aj-equipo');
+        AJ.datos.usuarios.forEach(function (x) {
+          var li = el('li', 'aj-persona' + (x.activo ? '' : ' apagada'));
+          var info = el('div', 'aj-persona-info');
+          var titulo = el('div', 'aj-persona-nombre');
+          titulo.appendChild(libre(el('strong', null, x.nombre)));
+          titulo.appendChild(libre(el('span', 'aj-usuario', '@' + x.usuario)));
+          if (x.usuario === AJ.datos.yo) titulo.appendChild(el('span', 'aj-tu', 'Tú'));
+          info.appendChild(titulo);
+          var roles = el('div', 'aj-roles');
+          x.roles.forEach(function (r) { roles.appendChild(el('span', 'chip listo', nombreRol(r))); });
+          if (!x.roles.length) roles.appendChild(el('span', 'chip cancelado', 'Sin tarea'));
+          info.appendChild(roles);
+          var estado = !x.activo ? 'Desactivada: no puede entrar'
+            : (x.sinClave ? 'Sin clave: todavía no puede entrar'
+              : (x.ingreso ? 'Último ingreso: ' + new Date(x.ingreso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Todavía no ha entrado'));
+          info.appendChild(el('p', 'ayuda', estado));
+          li.appendChild(info);
+          var b = el('button', 'btn-sec', 'Editar');
+          b.type = 'button';
+          b.setAttribute('aria-label', 'Editar a ' + x.nombre);
+          b.addEventListener('click', function () { abrirUsuario(x); });
+          li.appendChild(b);
+          lista.appendChild(li);
+        });
+        p.appendChild(lista);
+        c.appendChild(p);
+      }
+
+      var dlgUsuario = $('#dlg-usuario');
+      function errorUsuario(t) { var e = $('#usr-error'); e.textContent = t || ''; e.style.display = t ? 'block' : 'none'; }
+
+      function abrirUsuario(x) {
+        AJ.editando = x;
+        var nuevo = !x;
+        $('#usr-titulo').textContent = nuevo ? 'Agregar persona' : 'Editar a ' + x.nombre;
+        $('#usr-nombre').value = nuevo ? '' : x.nombre;
+        $('#usr-usuario').value = nuevo ? '' : x.usuario;
+        $('#usr-bloque-usuario').hidden = !nuevo;
+        $('#usr-clave').value = '';
+        $('#usr-clave-etq').textContent = nuevo ? 'Clave' : 'Nueva clave (opcional)';
+        $('#usr-clave-ayuda').textContent = nuevo
+          ? 'Mínimo 6 caracteres. Dísela a la persona; después la puede cambiar contigo.'
+          : (x.sinClave ? 'Esta persona no tiene clave: escríbele una para que pueda entrar.' : 'Déjala vacía para no cambiarla. Si la cambias, se cierra su sesión.');
+        $('#usr-bloque-activo').hidden = nuevo;
+        $('#usr-activo').checked = nuevo || x.activo;
+        var cont = $('#usr-roles');
+        cont.textContent = '';
+        ['Vendedora', 'Decorador', 'Entregador', 'Administrador'].forEach(function (r) {
+          var l = el('label', 'check aj-rol');
+          var i = el('input'); i.type = 'checkbox'; i.value = r; i.checked = !nuevo && x.roles.indexOf(r) >= 0;
+          l.appendChild(i);
+          var t = el('span');
+          t.appendChild(el('b', null, nombreRol(r)));
+          t.appendChild(el('small', null, ROL_AYUDA[r]));
+          l.appendChild(t);
+          cont.appendChild(l);
+        });
+        errorUsuario('');
+        $('#usr-confirmar').disabled = false;
+        $('#usr-confirmar').textContent = 'Guardar';
+        dlgUsuario.showModal();
+        $('#usr-nombre').focus();
+      }
+
+      $('#usr-volver').addEventListener('click', function () { dlgUsuario.close(); });
+      $('#form-usuario').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var x = AJ.editando, nuevo = !x;
+        var datos = {
+          nuevo: nuevo,
+          usuario: nuevo ? $('#usr-usuario').value.trim().toLowerCase() : x.usuario,
+          nombre: $('#usr-nombre').value.trim(),
+          roles: $$('#usr-roles input:checked').map(function (i) { return i.value; }),
+          clave: $('#usr-clave').value,
+          activo: nuevo ? true : $('#usr-activo').checked
+        };
+        if (datos.nombre.length < 2) { errorUsuario('Escribe el nombre de la persona.'); return; }
+        if (nuevo && !/^[a-z0-9._-]{3,30}$/.test(datos.usuario)) { errorUsuario('El usuario debe tener de 3 a 30 letras o números, sin espacios ni tildes.'); return; }
+        if (!datos.roles.length) { errorUsuario('Elige al menos una tarea.'); return; }
+        if ((nuevo || datos.clave) && datos.clave.length < 6) { errorUsuario('La clave debe tener al menos 6 caracteres.'); return; }
+        var b = $('#usr-confirmar');
+        b.disabled = true; b.textContent = 'Guardando…';
+        errorUsuario('');
+        api('guardarUsuario', [datos]).then(function (r) {
+          b.disabled = false; b.textContent = 'Guardar';
+          if (!r || !r.ok) { errorUsuario((r && r.error) || 'No se pudo guardar.'); return; }
+          if (r.token) { S.token = r.token; guardarToken(r.token); }
+          AJ.datos.usuarios = r.usuarios;
+          dlgUsuario.close();
+          renderAjustes();
+          toast(nuevo ? 'Listo. Dile a ' + datos.nombre.split(' ')[0] + ' que entre con el usuario "' + datos.usuario + '" y la clave que le pusiste.' : 'Guardado.');
+        }).catch(function (e) {
+          b.disabled = false; b.textContent = 'Guardar';
+          if (e && e.message !== 'sesion') errorUsuario('No se pudo guardar. Revisa tu conexión.');
+        });
+      });

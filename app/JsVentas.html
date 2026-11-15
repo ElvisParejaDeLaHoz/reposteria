@@ -1,0 +1,309 @@
+/* JsVentas: Panel de ventas y equipo (quien administra).
+   Se mete dentro del mismo (function () { ... })() de Index.html: comparte sus variables. */
+      /* ---------- Administración: ventas, pedidos y equipo ---------- */
+      var ADM = { per: 'hoy', base: 'venta', vista: 'resumen', datos: null, json: '', seq: 0, q: '', est: '', abiertos: {} };
+
+      function rangoAdmin() {
+        var h = hoyISO();
+        if (ADM.per === 'hoy') return [h, h];
+        if (ADM.per === 'ayer') { var a = sumarDias(h, -1); return [a, a]; }
+        if (ADM.per === 'semana') return [sumarDias(h, -6), h];
+        if (ADM.per === 'mes') return [h.slice(0, 8) + '01', h];
+        return [$('#adm-desde').value, $('#adm-hasta').value];
+      }
+
+      function errorRango(t) {
+        var e = $('#adm-rango-error');
+        e.textContent = t || '';
+        e.style.display = t ? 'block' : 'none';
+      }
+
+      function cargarAdmin(silencioso) {
+        var r = rangoAdmin();
+        errorRango('');
+        if (!r[0] || !r[1]) { $('#adm-resumen').textContent = ''; $('#adm-lista').textContent = ''; return; }
+        if (r[0] > r[1]) { errorRango('La fecha "Desde" no puede ser después de "Hasta".'); return; }
+        var mi = ++ADM.seq;
+        $('#adm-recargar').disabled = true;
+        if (!silencioso && !ADM.datos) { $('#adm-resumen').textContent = ''; $('#adm-resumen').appendChild(vacio('Cargando…')); }
+        api('getAdmin', [r[0], r[1], ADM.base]).then(function (res) {
+          if (mi !== ADM.seq) return;
+          if (res && res.ok) {
+            var j = JSON.stringify(res);
+            if (j !== ADM.json || !silencioso) { ADM.json = j; ADM.datos = res; renderAdmin(); }
+          } else if (res && res.error) {
+            toast(res.error, true);
+          }
+        }).catch(function (e) {
+          if (e && e.message !== 'sesion' && !silencioso) toast('No se pudo cargar la información. Revisa tu conexión.', true);
+        }).then(function () {
+          if (mi === ADM.seq) $('#adm-recargar').disabled = false;
+        });
+      }
+
+      function reiniciarAdmin() {
+        ADM.datos = null; ADM.json = ''; ADM.abiertos = {}; ADM.seq++;
+        cargarAdmin(false);
+      }
+
+      function mostrarVistaAdmin() {
+        $('#adm-resumen').hidden = ADM.vista !== 'resumen';
+        $('#adm-pedidos').hidden = ADM.vista !== 'pedidos';
+      }
+
+      $$('input[name="adm-per"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+          ADM.per = r.value;
+          $('#adm-rango').hidden = ADM.per !== 'otro';
+          if (ADM.per === 'otro' && !$('#adm-desde').value) {
+            $('#adm-hasta').value = hoyISO();
+            $('#adm-desde').value = sumarDias(hoyISO(), -6);
+          }
+          reiniciarAdmin();
+        });
+      });
+      $$('input[name="adm-base"]').forEach(function (r) {
+        r.addEventListener('change', function () { ADM.base = r.value; reiniciarAdmin(); });
+      });
+      $$('input[name="adm-vista"]').forEach(function (r) {
+        r.addEventListener('change', function () { ADM.vista = r.value; mostrarVistaAdmin(); });
+      });
+      ['#adm-desde', '#adm-hasta'].forEach(function (s) { $(s).addEventListener('change', reiniciarAdmin); });
+      $('#adm-recargar').addEventListener('click', function () { cargarAdmin(false); });
+      $('#adm-q').addEventListener('input', function () { ADM.q = this.value; renderAdminPedidos(); });
+      $('#adm-est').addEventListener('change', function () { ADM.est = this.value; renderAdminPedidos(); });
+
+      function textoPeriodo(d) {
+        if (d.desde === d.hasta) {
+          var h = hoyISO();
+          var pref = d.desde === h ? 'Hoy, ' : (d.desde === sumarDias(h, -1) ? 'Ayer, ' : '');
+          return pref + fmtFecha(d.desde);
+        }
+        return 'Del ' + fmtFecha(d.desde) + ' al ' + fmtFecha(d.hasta);
+      }
+
+      function fmtMs(ms) {
+        if (!ms) return '';
+        var d = new Date(ms), h = new Date();
+        var hora = fmtHora(pad(d.getHours()) + ':' + pad(d.getMinutes()));
+        return d.toDateString() === h.toDateString() ? 'hoy ' + hora : d.getDate() + ' de ' + MESES[d.getMonth()] + ', ' + hora;
+      }
+      function minutosEntre(a, b) { return a && b && b >= a ? Math.round((b - a) / 60000) : null; }
+      function fmtMin(m) {
+        if (m == null) return '';
+        if (m < 60) return m + ' min';
+        var h = Math.floor(m / 60), r = m % 60;
+        return h + ' h' + (r ? ' ' + r + ' min' : '');
+      }
+
+      function kpi(etq, valorTxt, sub, clase) {
+        var k = el('div', 'kpi' + (clase ? ' ' + clase : ''));
+        k.appendChild(el('small', null, etq));
+        k.appendChild(el('b', null, valorTxt));
+        if (sub) k.appendChild(el('span', null, sub));
+        return k;
+      }
+
+      function panel(titulo, ayuda) {
+        var p = el('section', 'panel');
+        p.appendChild(el('h2', null, titulo));
+        if (ayuda) p.appendChild(el('p', 'ayuda', ayuda));
+        return p;
+      }
+
+      /** Barras horizontales: cada fila {k, n, total}; el largo es proporcional al total. */
+      function panelBarras(titulo, filas, rotular) {
+        var p = panel(titulo);
+        var max = 0, suma = 0;
+        filas.forEach(function (x) { max = Math.max(max, x.total); suma += x.total; });
+        var ul = el('ul', 'barras');
+        filas.forEach(function (x) {
+          var li = el('li', 'barra-fila');
+          var t = el('div', 'barra-txt');
+          t.appendChild(el('span', null, rotular ? rotular(x.k) : x.k));
+          t.appendChild(el('span', null, fmtDinero(x.total)));
+          li.appendChild(t);
+          var pista = el('div', 'barra-pista');
+          var i = el('i');
+          i.style.width = (max ? Math.max(2, Math.round(x.total / max * 100)) : 0) + '%';
+          pista.appendChild(i);
+          li.appendChild(pista);
+          li.appendChild(el('small', null, plural(x.n, 'pedido', 'pedidos') + (suma ? ' · ' + Math.round(x.total / suma * 100) + ' % de las ventas' : '')));
+          ul.appendChild(li);
+        });
+        p.appendChild(ul);
+        return p;
+      }
+
+      function panelRanking(titulo, ayuda, items) {
+        var p = panel(titulo, ayuda);
+        var ol = el('ol', 'ranking');
+        items.forEach(function (x, i) {
+          var li = el('li');
+          li.appendChild(el('span', 'pos', String(i + 1)));
+          li.appendChild(el('span', 'nom', x.nombre));
+          li.appendChild(el('span', 'val', fmtDinero(x.valor)));
+          if (x.sub) li.appendChild(el('small', null, x.sub));
+          ol.appendChild(li);
+        });
+        p.appendChild(ol);
+        return p;
+      }
+
+      function renderAdmin() {
+        var d = ADM.datos;
+        if (!d) return;
+        $('#adm-leyenda').textContent = textoPeriodo(d) + '. ' + (d.base === 'entrega'
+          ? 'Las ventas se cuentan según la fecha de entrega del pedido.'
+          : 'Las ventas se cuentan según el día en que se registró el pedido.') + ' Los cancelados no suman.';
+        $('#adm-vista-ped').textContent = 'Pedidos (' + d.pedidos.length + ')';
+        renderAdminResumen();
+        renderAdminPedidos();
+        mostrarVistaAdmin();
+      }
+
+      function renderAdminResumen() {
+        var d = ADM.datos, t = d.totales, c = $('#adm-resumen');
+        c.textContent = '';
+        if (!t.pedidos && !t.cancelados.n) {
+          c.appendChild(vacio('No hay pedidos en este periodo', 'Prueba con otro periodo o cambia entre fecha de venta y fecha de entrega.'));
+          return;
+        }
+        var k = el('div', 'adm-kpis');
+        k.appendChild(kpi('Total vendido', fmtDinero(t.ventas), plural(t.pedidos, 'pedido', 'pedidos') + ' · ticket promedio ' + fmtDinero(t.ticket), 'grande'));
+        k.appendChild(kpi('En productos', fmtDinero(t.productos), '+ ' + fmtDinero(t.domicilios) + ' en domicilios'));
+        k.appendChild(kpi('Entregado', fmtDinero(t.entregados.total), plural(t.entregados.n, 'pedido', 'pedidos')));
+        k.appendChild(kpi('Por entregar', fmtDinero(t.enCurso.total), plural(t.enCurso.n, 'pedido', 'pedidos')));
+        k.appendChild(kpi('Cancelado', fmtDinero(t.cancelados.total), plural(t.cancelados.n, 'pedido', 'pedidos') + ' (no suma)', 'apagado'));
+        c.appendChild(k);
+
+        var g = el('div', 'adm-grid');
+        if (d.porDia.length > 1) g.appendChild(panelBarras('Ventas por día', d.porDia, function (iso) { return cap(fmtFecha(iso)); }));
+        if (d.porPago.length) g.appendChild(panelBarras('Por método de pago', d.porPago));
+        if (d.porMedio.length) g.appendChild(panelBarras('Por medio de venta', d.porMedio));
+        if (d.porEntrega.length) g.appendChild(panelBarras('Domicilio y local', d.porEntrega));
+        if (d.porVendedora.length) {
+          g.appendChild(panelRanking('Top vendedoras', 'Quién vendió más en el periodo.', d.porVendedora.map(function (v) {
+            return { nombre: v.k, valor: v.total, sub: plural(v.n, 'pedido', 'pedidos') + (v.cancelados ? ' · ' + plural(v.cancelados, 'cancelado', 'cancelados') : '') };
+          })));
+        }
+        if (d.top.length) {
+          g.appendChild(panelRanking('Pedidos más altos', 'Los arreglos de mayor valor.', d.top.map(function (p) {
+            return { nombre: p.para + ' (pidió ' + p.cliente + ')', valor: p.total, sub: 'Vendido el ' + fmtFecha(p.dia) + ' · ' + (p.vendedora || 'sin vendedora') };
+          })));
+        }
+        var eq = d.equipo, tiene = eq.decoradores.length || eq.entregadores.length;
+        if (tiene) {
+          var pe = panel('Trabajo del equipo', 'Pedidos terminados o entregados en el periodo y tiempo promedio.');
+          var ul = el('ul', 'barras');
+          eq.decoradores.forEach(function (x) { ul.appendChild(filaEquipo('Decorador', x, 'armando')); });
+          eq.entregadores.forEach(function (x) { ul.appendChild(filaEquipo('Entregador', x, 'en ruta')); });
+          pe.appendChild(ul);
+          g.appendChild(pe);
+        }
+        c.appendChild(g);
+      }
+
+      function filaEquipo(rol, x, verbo) {
+        var li = el('li', 'barra-fila');
+        var t = el('div', 'barra-txt');
+        t.appendChild(el('span', null, x.nombre));
+        t.appendChild(el('span', null, plural(x.n, 'pedido', 'pedidos')));
+        li.appendChild(t);
+        li.appendChild(el('small', null, rol + (x.minProm != null ? ' · ' + fmtMin(x.minProm) + ' en promedio ' + verbo : '')));
+        return li;
+      }
+
+      function dato(dl, etq, txt, esLibre) {
+        if (txt == null || txt === '') return;
+        dl.appendChild(el('dt', null, etq));
+        var dd = el('dd', null, String(txt));
+        dl.appendChild(esLibre ? libre(dd) : dd);
+      }
+
+      function registroAdmin(p) {
+        var det = el('details', 'reg' + (p.estado === 'Cancelado' ? ' cancelado' : ''));
+        det.open = !!ADM.abiertos[p.id];
+        det.addEventListener('toggle', function () { if (det.open) ADM.abiertos[p.id] = true; else delete ADM.abiertos[p.id]; });
+        var s = el('summary');
+        var q = el('div', 'reg-quien', 'Para ' + p.para + ' ');
+        q.appendChild(el('span', null, 'pidió ' + p.cliente));
+        s.appendChild(q);
+        s.appendChild(el('div', 'reg-total', fmtDinero(p.total)));
+        var sub = el('div', 'reg-sub');
+        sub.appendChild(chip(p.estado));
+        sub.appendChild(el('span', null, cap(fmtFecha(p.fecha)) + ', ' + fmtHora(p.hora)));
+        sub.appendChild(el('span', null, p.entrega + ' · ' + p.pago + (p.vendedora ? ' · ' + p.vendedora : '')));
+        s.appendChild(sub);
+        det.appendChild(s);
+
+        var cuerpo = el('div', 'reg-cuerpo');
+        var dl = el('dl');
+        dato(dl, 'Descripción', p.descripcion, true);
+        if (p.dedicatoria === 'Sí') dato(dl, 'Dedicatoria', p.textoDedicatoria || 'Sí', true);
+        dato(dl, 'Vendió', (p.vendedora || '—') + (p.medio ? ' por ' + p.medio : '') + (p.registradoMs ? ' · ' + fmtMs(p.registradoMs) : ''));
+        dato(dl, 'Teléfono', p.telefono);
+        dato(dl, 'Dirección', p.direccion, true);
+        dato(dl, 'Valor del arreglo', fmtDinero(p.valorProducto));
+        if (p.entrega === 'Domicilio') dato(dl, 'Valor del domicilio', fmtDinero(p.valorDomicilio));
+        dato(dl, 'Total', fmtDinero(p.total));
+        if (p.controlPago) dato(dl, 'Pagos', p.saldo > 0 ? 'Abonó ' + fmtDinero(p.abonado) + ' · debe ' + fmtDinero(p.saldo) : 'Pagado completo');
+        if (p.costo) dato(dl, 'Costo', fmtDinero(p.costo) + ' · ganancia ' + fmtDinero(p.total - p.costo));
+        if (p.decorador) {
+          var mp = minutosEntre(p.inicioPrepMs, p.listoMs);
+          dato(dl, 'Decorador', p.decorador + (mp != null ? ' · armó en ' + fmtMin(mp) : '') + (p.listoMs ? ' · listo ' + fmtMs(p.listoMs) : ''));
+        }
+        if (p.entregador) {
+          var me = minutosEntre(p.salioMs, p.entregadoMs);
+          dato(dl, 'Entregador', p.entregador + (me != null ? ' · ruta de ' + fmtMin(me) : '') + (p.entregadoMs ? ' · entregó ' + fmtMs(p.entregadoMs) : ''));
+        } else if (p.entregadoMs) {
+          dato(dl, 'Entregado', fmtMs(p.entregadoMs));
+        }
+        dato(dl, 'Recibió', p.recibio, true);
+        if (p.estado === 'Cancelado') dato(dl, 'Motivo de la cancelación', p.cancelacion, true);
+        if (p.editadoMs) dato(dl, 'Última modificación', fmtMs(p.editadoMs) + (p.editadoPor ? ' · ' + p.editadoPor : ''));
+        dato(dl, 'Número de pedido', p.id);
+        cuerpo.appendChild(dl);
+        var ac = el('div', 'acciones');
+        if (p.conEvidencia) {
+          var b = el('button', 'tarea-btn deshacer', 'Ver foto de la entrega');
+          b.type = 'button';
+          b.addEventListener('click', function () { verEvidencia(p); });
+          ac.appendChild(b);
+        }
+        if (p.controlPago && p.saldo > 0 && p.estado !== 'Cancelado') {
+          var bp = el('button', 'tarea-btn deshacer', 'Registrar pago');
+          bp.type = 'button';
+          bp.addEventListener('click', function () { abrirAbono(p); });
+          ac.appendChild(bp);
+        }
+        if (p.estado !== 'Entregado' && p.estado !== 'Cancelado') {
+          var bc = el('button', 'tarea-btn peligro', 'Cancelar pedido');
+          bc.type = 'button';
+          bc.addEventListener('click', function () { abrirCancelar(p); });
+          ac.appendChild(bc);
+        }
+        if (ac.childNodes.length) cuerpo.appendChild(ac);
+        det.appendChild(cuerpo);
+        return det;
+      }
+
+      function renderAdminPedidos() {
+        var d = ADM.datos, c = $('#adm-lista');
+        c.textContent = '';
+        if (!d) return;
+        var q = ADM.q.trim().toLowerCase();
+        var lista = d.pedidos.filter(function (p) {
+          if (ADM.est && p.estado !== ADM.est) return false;
+          if (!q) return true;
+          return [p.cliente, p.para, p.vendedora, p.medio, p.descripcion, p.id, p.decorador, p.entregador, p.direccion, p.telefono]
+            .join(' ').toLowerCase().indexOf(q) >= 0;
+        });
+        var cu = plural(lista.length, 'pedido', 'pedidos');
+        if (lista.length !== d.pedidos.length) cu += ' de ' + d.pedidos.length;
+        if (d.recortado) cu += ' · se muestran los 400 más recientes; los totales de arriba incluyen todos';
+        $('#adm-cuenta').textContent = cu;
+        if (!lista.length) { c.appendChild(vacio('No hay pedidos que coincidan')); return; }
+        lista.forEach(function (p) { c.appendChild(registroAdmin(p)); });
+      }
+

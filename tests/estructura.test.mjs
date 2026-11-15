@@ -1,0 +1,72 @@
+/* Pruebas de estructura: que la pantalla se arme bien y que todo lo que llama exista. */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import { APP, archivosGs, cargarServidor, armarPantalla } from './entorno.mjs';
+
+const { html, faltan } = armarPantalla();
+const js = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
+
+test('el servidor carga sin errores (constantes en orden, sin nombres repetidos)', () => {
+  assert.doesNotThrow(() => cargarServidor());
+});
+
+test('no hay dos funciones con el mismo nombre en archivos distintos', () => {
+  const vistos = {};
+  const repetidas = [];
+  archivosGs().forEach(f => {
+    const txt = fs.readFileSync(path.join(APP, f), 'utf8');
+    for (const m of txt.matchAll(/^function ([A-Za-z0-9_]+)/gm)) {
+      if (vistos[m[1]]) repetidas.push(m[1] + ' (' + vistos[m[1]] + ' y ' + f + ')');
+      vistos[m[1]] = f;
+    }
+  });
+  assert.deepEqual(repetidas, []);
+});
+
+test('todos los pedazos de la pantalla existen', () => {
+  assert.deepEqual(faltan, []);
+});
+
+test('el JavaScript de la pantalla no tiene errores de sintaxis', () => {
+  assert.doesNotThrow(() => new vm.Script(js, { filename: 'Index.html (armado)' }));
+});
+
+test('los pedazos no traen marcas de plantilla que Apps Script intentaría ejecutar', () => {
+  fs.readdirSync(APP).filter(f => f.endsWith('.html') && f !== 'Index.html').forEach(f => {
+    assert.ok(!fs.readFileSync(path.join(APP, f), 'utf8').includes('<?'), f);
+  });
+});
+
+test('cada elemento que busca el JavaScript existe en la pantalla', () => {
+  const ids = new Set([...html.matchAll(/id="([\w-]+)"/g)].map(m => m[1]));
+  const creadosEnJs = new Set([
+    ...[...js.matchAll(/\.id = '([\w-]+)'/g)].map(m => m[1]),
+    ...[...js.matchAll(/campoDinero\('([\w-]+)'/g)].map(m => m[1])
+  ]);
+  const usados = [...js.matchAll(/\$\('#([\w-]+)'\)/g)].map(m => m[1]);
+  const prefijosDinamicos = /^(tab-|cuenta-|punto-|mod-|lista-)/;
+  const faltantes = [...new Set(usados)].filter(id => !ids.has(id) && !creadosEnJs.has(id) && !prefijosDinamicos.test(id));
+  assert.deepEqual(faltantes, []);
+});
+
+test('cada función que la pantalla le pide al servidor existe y es pública', () => {
+  const g = cargarServidor();
+  const pedidas = new Set([
+    ...[...js.matchAll(/\bapi\('(\w+)'/g)].map(m => m[1]),
+    ...[...js.matchAll(/\bllamar\('(\w+)'/g)].map(m => m[1])
+  ]);
+  const faltantes = [...pedidas].filter(n => typeof g[n] !== 'function' || n.endsWith('_'));
+  assert.deepEqual(faltantes, []);
+  assert.ok(pedidas.size >= 15, 'se encontraron ' + pedidas.size + ' llamadas');
+});
+
+test('la plantilla solo usa incluir_ (y existe en el servidor)', () => {
+  const g = cargarServidor();
+  assert.equal(typeof g.incluir_, 'function');
+  const idx = fs.readFileSync(path.join(APP, 'Index.html'), 'utf8');
+  const marcas = [...idx.matchAll(/<\?[\s\S]*?\?>/g)].map(m => m[0]);
+  assert.ok(marcas.every(m => /^<\?!= incluir_\('\w+'\) \?>$/.test(m)), marcas.join(' | '));
+});

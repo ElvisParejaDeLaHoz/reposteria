@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pedidos de arreglos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <?!= incluir_('Estilos') ?>
+</head>
+<body>
+
+  <div class="cargando" id="cargando" role="status">Cargando…</div>
+
+  <!-- ===== Entrada ===== -->
+  <div class="entrada" id="login" hidden>
+    <div class="tag-wrap">
+      <form class="tag" id="form-login" novalidate>
+        <img class="logo-login" id="logo-login" alt="Logo de la floristería" hidden>
+        <h1 id="login-nombre" data-dato>Pedidos de arreglos</h1>
+        <p class="lema" id="login-lema" data-dato hidden></p>
+        <p class="sub">Entra con tu usuario y tu clave.</p>
+        <p class="error-form" id="login-error" role="alert" hidden></p>
+        <div class="pila">
+          <div class="campo">
+            <label class="etq" for="l-usuario">Usuario</label>
+            <input class="ctl" id="l-usuario" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+          </div>
+          <div class="campo">
+            <label class="etq" for="l-clave">Clave</label>
+            <input class="ctl" id="l-clave" type="password" autocomplete="current-password">
+          </div>
+          <button class="guardar ancho" id="l-entrar" type="submit">Entrar</button>
+        </div>
+        <div class="activar-caja" id="l-activar-caja" hidden>
+          <p>¿Es tu primera vez? Activa tu app con el código que te dio Elka.</p>
+          <button class="btn-sec ancho" id="l-activar" type="button">Activar mi app</button>
+        </div>
+        <p class="firma-elka"><svg class="elka-brote" viewBox="0 0 64 64" aria-hidden="true"><path d="M16 58.5Q32 52.5 48 58.5M32 56C32 46.5 29.8 40.5 31.4 33.5C32.6 28.3 34.4 25.2 34.9 23.6" fill="none" stroke="#1F5E4A" stroke-width="5" stroke-linecap="round"/><path d="M31 40.5C22 46.5 8.5 41.5 5 25C18 21.5 29 27.5 31 40.5Z" fill="#1F5E4A"/><path d="M35 22.5C33.5 9.5 44.5 1.5 60 2.5C60.5 16.5 50 26 35 22.5Z" fill="#E9785A"/></svg>Con el acompañamiento de <b>Elka</b> · Ordenamos tu negocio</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== Bienvenida: la dueña activa y configura su app (solo con código de activación) ===== -->
+  <div class="entrada bienvenida" id="bienvenida" hidden>
+    <div class="tag-wrap">
+      <div class="tag">
+        <p class="bv-pasos" id="bv-pasos" aria-live="polite"></p>
+
+        <form class="bv-paso" id="bv-0" novalidate>
+          <h1>Bienvenida</h1>
+          <p class="sub">Vamos a dejar tu app lista en 3 pasos. Escribe el código de activación que te dio Elka.</p>
+          <div class="campo">
+            <label class="etq" for="bv-codigo">Código de activación</label>
+            <input class="ctl bv-codigo" id="bv-codigo" type="text" maxlength="12" placeholder="ABCD-2345" autocapitalize="characters" autocorrect="off" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="bv-botones">
+            <button class="guardar ancho" id="bv-0-ok" type="submit">Continuar</button>
+            <button class="enlace" id="bv-a-login" type="button">Ya tengo usuario y clave</button>
+          </div>
+        </form>
+
+        <form class="bv-paso" id="bv-1" novalidate hidden>
+          <h1>Tu negocio</h1>
+          <p class="sub">Así lo verán tú y tu equipo. Todo se puede cambiar después en Ajustes.</p>
+          <div class="pila">
+            <div class="campo">
+              <label class="etq" for="bv-negocio">Nombre de tu negocio</label>
+              <input class="ctl" id="bv-negocio" type="text" maxlength="60" autocapitalize="words" placeholder="Ej. Dulce Tentación">
+            </div>
+            <div class="campo">
+              <label class="etq" for="bv-producto">¿Qué vendes? (en singular)</label>
+              <input class="ctl" id="bv-producto" type="text" maxlength="40" placeholder="Ej. torta, ramo, almuerzo">
+              <p class="ayuda">La app lo usa en todas partes: "Nueva torta", "Tortas de hoy"…</p>
+            </div>
+            <fieldset class="campo">
+              <legend class="etq">Tu color</legend>
+              <div class="bv-colores" id="bv-colores"></div>
+            </fieldset>
+            <div class="campo">
+              <span class="etq" id="bv-logo-etq">Tu logo (opcional)</span>
+              <label class="foto-zona logo-zona">
+                <input class="sr-only" id="bv-logo" type="file" accept="image/png,image/jpeg,image/webp" aria-labelledby="bv-logo-etq">
+                <span id="bv-logo-txt">Tocar para elegir una imagen</span>
+                <img class="logo-previa" id="bv-logo-previa" alt="Vista previa del logo" hidden>
+              </label>
+            </div>
+          </div>
+          <div class="bv-botones">
+            <button class="btn-sec bv-atras" type="button">Atrás</button>
+            <button class="guardar" type="submit">Siguiente</button>
+          </div>
+        </form>
+
+        <form class="bv-paso" id="bv-2" novalidate hidden>
+          <h1>Tu acceso</h1>
+          <p class="sub">Con este usuario y esta clave entras a la app. Anótalos en un lugar seguro.</p>
+          <div class="pila">
+            <div class="campo">
+              <label class="etq" for="bv-nombre">Tu nombre</label>
+              <input class="ctl" id="bv-nombre" type="text" maxlength="60" autocapitalize="words" autocomplete="name" placeholder="Ej. Keila Cabarcas">
+            </div>
+            <div class="campo">
+              <label class="etq" for="bv-usuario">Usuario para entrar</label>
+              <input class="ctl" id="bv-usuario" type="text" maxlength="30" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" placeholder="Ej. keila">
+              <p class="ayuda">Sin espacios ni tildes.</p>
+            </div>
+            <div class="fila">
+              <div class="campo">
+                <label class="etq" for="bv-clave">Clave</label>
+                <input class="ctl" id="bv-clave" type="password" autocomplete="new-password">
+                <p class="ayuda">Mínimo 6 caracteres.</p>
+              </div>
+              <div class="campo">
+                <label class="etq" for="bv-clave2">Repite la clave</label>
+                <input class="ctl" id="bv-clave2" type="password" autocomplete="new-password">
+              </div>
+            </div>
+            <label class="check"><input type="checkbox" id="bv-todo" checked> <span>Yo misma tomo, preparo y entrego los pedidos</span></label>
+            <p class="ayuda">Déjalo marcado si trabajas sola o haces de todo. Si tienes equipo, después lo agregas en Ajustes.</p>
+          </div>
+          <div class="bv-botones">
+            <button class="btn-sec bv-atras" type="button">Atrás</button>
+            <button class="guardar" type="submit">Siguiente</button>
+          </div>
+        </form>
+
+        <form class="bv-paso" id="bv-3" novalidate hidden>
+          <h1>Tus números</h1>
+          <p class="sub">Lo que pagas cada mes aunque no vendas nada. Con esto la app te dice cuánto necesitas vender para no perder plata.</p>
+          <div id="bv-fijos"></div>
+          <button class="btn-sec" id="bv-mas-fijo" type="button">+ Agregar gasto fijo</button>
+          <p class="adm-cuenta" id="bv-total"></p>
+          <div class="campo">
+            <label class="etq" for="bv-sueldo">¿Cuánto quieres ganarte al mes?</label>
+            <div class="dinero"><b>$</b><input class="ctl" id="bv-sueldo" type="text" inputmode="numeric" placeholder="0"></div>
+            <p class="ayuda">Tu sueldo como dueña. Solo lo ves tú.</p>
+          </div>
+          <div class="bv-botones">
+            <button class="btn-sec bv-atras" type="button">Atrás</button>
+            <button class="guardar" id="bv-terminar" type="submit">Activar mi app</button>
+          </div>
+          <button class="enlace bv-despues" id="bv-despues" type="button">Lo lleno después</button>
+        </form>
+
+        <p class="error-form" id="bv-error" role="alert" hidden></p>
+        <p class="firma-elka"><svg class="elka-brote" viewBox="0 0 64 64" aria-hidden="true"><path d="M16 58.5Q32 52.5 48 58.5M32 56C32 46.5 29.8 40.5 31.4 33.5C32.6 28.3 34.4 25.2 34.9 23.6" fill="none" stroke="#1F5E4A" stroke-width="5" stroke-linecap="round"/><path d="M31 40.5C22 46.5 8.5 41.5 5 25C18 21.5 29 27.5 31 40.5Z" fill="#1F5E4A"/><path d="M35 22.5C33.5 9.5 44.5 1.5 60 2.5C60.5 16.5 50 26 35 22.5Z" fill="#E9785A"/></svg>Con el acompañamiento de <b>Elka</b> · Ordenamos tu negocio</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Aplicación ===== -->
+  <div id="app" hidden>
+    <header class="top">
+      <div>
+        <img class="logo-cab" id="logo-cab" alt="Logo de la floristería" hidden>
+        <p class="marca" id="marca" data-dato hidden></p>
+        <h1 id="titulo-vista"></h1>
+        <p id="sub-vista"></p>
+      </div>
+      <div class="sesion">
+        <div class="sesion-quien"><b id="s-nombre"></b><span id="s-rol"></span></div>
+        <div class="sesion-acc">
+          <button class="campana" id="campana" type="button" aria-pressed="true" aria-label="Alertas con sonido: activadas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.6-2.2V10a4.4 4.4 0 0 0-8.8 0v4.8z"/><path d="M10 20a2 2 0 0 0 4 0"/><path class="raya" d="M4 4l16 16"/></svg></button>
+          <button class="enlace" id="ajustes" type="button" hidden>Ajustes</button>
+          <button class="enlace" id="modo" type="button" aria-label="Cambiar entre modo claro, oscuro y automático"></button>
+          <button class="enlace" id="salir" type="button">Salir</button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Módulos"></nav>
+
+    <!-- Vendedora: tomar pedido -->
+    <main class="layout" id="mod-pedido" role="tabpanel" hidden>
+      <div class="tag-wrap">
+        <form id="form" class="tag" novalidate autocomplete="off">
+          <div class="nota-edicion" id="nota-edicion" role="status" hidden></div>
+
+          <section class="grupo" aria-labelledby="t-venta">
+            <h2 id="t-venta">Cómo llegó el pedido</h2>
+            <fieldset class="campo" id="g-medio">
+              <legend class="sr-only">Medio de venta</legend>
+              <div class="seg" id="lista-medio"></div>
+              <p class="msg"></p>
+            </fieldset>
+          </section>
+
+          <section class="grupo" aria-labelledby="t-quien">
+            <h2 id="t-quien">Quién pide y para quién</h2>
+            <div class="fila">
+              <div class="campo">
+                <label class="etq" for="cliente">Cliente que pidió</label>
+                <input class="ctl" id="cliente" name="cliente" type="text" placeholder="Ej. Camila Rojas" autocapitalize="words">
+                <p class="msg"></p>
+              </div>
+              <div class="campo">
+                <label class="etq" for="para">Para quién va dirigido</label>
+                <input class="ctl" id="para" name="para" type="text" placeholder="Ej. Laura Pérez" autocapitalize="words">
+                <p class="msg"></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="grupo" aria-labelledby="t-arreglo">
+            <h2 id="t-arreglo">El arreglo</h2>
+            <div class="campo">
+              <label class="etq" for="descripcion">Descripción completa</label>
+              <textarea class="ctl" id="descripcion" name="descripcion" rows="5" placeholder="Ej. Ramo de 12 rosas rojas con eucalipto, papel kraft y lazo guinda. Tamaño mediano, con 3 girasoles."></textarea>
+              <p class="ayuda" id="cuenta-desc">Incluye flores y colores, tamaño, base o florero, adicionales y lo que pidió el cliente.</p>
+              <p class="msg"></p>
+            </div>
+          </section>
+
+          <section class="grupo" aria-labelledby="t-entrega">
+            <h2 id="t-entrega">Entrega</h2>
+            <div class="pila">
+              <fieldset class="campo" id="g-entrega">
+                <legend class="etq">Cómo se entrega</legend>
+                <div class="seg">
+                  <label><input type="radio" name="entrega" value="Domicilio"><span>Domicilio</span></label>
+                  <label><input type="radio" name="entrega" value="Local"><span>Entrega en el local</span></label>
+                </div>
+                <p class="msg"></p>
+              </fieldset>
+
+              <div class="campo" id="bloque-direccion" hidden>
+                <label class="etq" for="direccion">Dirección de entrega</label>
+                <input class="ctl" id="direccion" name="direccion" type="text" placeholder="Calle, número, barrio, apartamento o referencia">
+                <p class="msg"></p>
+              </div>
+
+              <div class="campo">
+                <label class="etq" for="telefono" id="telefono-etq">Teléfono de quien recibe</label>
+                <input class="ctl" id="telefono" name="telefono" type="tel" inputmode="tel" autocomplete="off" placeholder="Ej. 300 123 4567">
+                <p class="ayuda" id="telefono-ayuda">El entregador lo usa para llamar al llegar.</p>
+                <p class="msg"></p>
+              </div>
+
+              <div class="fila">
+                <div class="campo">
+                  <label class="etq" for="fecha">Fecha de entrega</label>
+                  <input class="ctl" id="fecha" name="fecha" type="date">
+                  <p class="msg"></p>
+                </div>
+                <div class="campo">
+                  <label class="etq" for="hora">Hora de entrega</label>
+                  <input class="ctl" id="hora" name="hora" type="time" step="300">
+                  <p class="msg"></p>
+                </div>
+              </div>
+
+              <div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
+            </div>
+          </section>
+
+          <section class="grupo" aria-labelledby="t-dedic">
+            <h2 id="t-dedic">Dedicatoria</h2>
+            <div class="pila">
+              <fieldset class="campo" id="g-dedicatoria">
+                <legend class="etq">¿Lleva dedicatoria?</legend>
+                <div class="seg">
+                  <label><input type="radio" name="dedicatoria" value="Sí"><span>Sí</span></label>
+                  <label><input type="radio" name="dedicatoria" value="No"><span>No</span></label>
+                </div>
+                <p class="msg"></p>
+              </fieldset>
+              <div class="campo" id="bloque-dedic" hidden>
+                <label class="etq" for="textoDedicatoria">Texto de la dedicatoria</label>
+                <textarea class="ctl" id="textoDedicatoria" name="textoDedicatoria" rows="3" placeholder="Escríbela tal como debe ir en la tarjeta"></textarea>
+                <p class="msg"></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="grupo" aria-labelledby="t-pago">
+            <h2 id="t-pago">Pago y valores</h2>
+            <div class="pila">
+              <fieldset class="campo" id="g-pago">
+                <legend class="etq">Método de pago</legend>
+                <div class="seg" id="lista-pago"></div>
+                <p class="msg"></p>
+              </fieldset>
+
+              <div class="fila">
+                <div class="campo">
+                  <label class="etq" for="valorProducto">Valor del producto</label>
+                  <div class="dinero"><b>$</b><input class="ctl" id="valorProducto" name="valorProducto" type="text" inputmode="numeric" placeholder="0"></div>
+                  <p class="msg"></p>
+                </div>
+                <div class="campo" id="bloque-domicilio" hidden>
+                  <label class="etq" for="valorDomicilio">Valor del domicilio</label>
+                  <div class="dinero"><b>$</b><input class="ctl" id="valorDomicilio" name="valorDomicilio" type="text" inputmode="numeric" placeholder="0"></div>
+                  <p class="msg"></p>
+                </div>
+              </div>
+
+              <div class="fila">
+                <div class="campo" id="bloque-abono">
+                  <label class="etq" for="abono">Abono o anticipo que pagó hoy</label>
+                  <div class="dinero"><b>$</b><input class="ctl" id="abono" name="abono" type="text" inputmode="numeric" placeholder="0"></div>
+                  <p class="ayuda" id="abono-ayuda">Déjalo en 0 si paga todo al recibir.</p>
+                  <p class="msg"></p>
+                </div>
+                <div class="campo" id="bloque-costo" hidden>
+                  <label class="etq" for="costo">Costo de materiales (opcional)</label>
+                  <div class="dinero"><b>$</b><input class="ctl" id="costo" name="costo" type="text" inputmode="numeric" placeholder="0"></div>
+                  <p class="ayuda">Lo que te cuesta hacerlo. Solo lo ves tú y sirve para saber cuánto ganas.</p>
+                  <p class="msg"></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="cierre">
+            <div class="total">
+              <small>Total del pedido</small>
+              <output id="total" for="valorProducto valorDomicilio">$0</output>
+              <span class="saldo-form" id="saldo-form" hidden></span>
+            </div>
+            <div class="cierre-botones">
+              <button class="btn-sec" id="cancelar-edicion" type="button" hidden>Descartar cambios</button>
+              <button class="guardar" id="guardar" type="submit">Guardar pedido</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <aside class="dia" aria-labelledby="t-dia">
+        <div class="dia-cab">
+          <h2 id="t-dia">Turnos del día</h2>
+          <span class="dia-cuenta" id="dia-cuenta"></span>
+        </div>
+        <p class="dia-fecha" id="dia-fecha"></p>
+        <ul class="lista" id="dia-lista"></ul>
+      </aside>
+    </main>
+
+    <!-- Vendedora: seguimiento -->
+    <main class="deco" id="mod-seguimiento" role="tabpanel" hidden>
+      <div class="deco-barra">
+        <div class="barra-filtros">
+          <fieldset class="campo">
+            <legend class="sr-only">De quién son los pedidos</legend>
+            <div class="seg">
+              <label><input type="radio" name="seg-quien" value="mios" checked><span>Los míos</span></label>
+              <label><input type="radio" name="seg-quien" value="todos"><span>De todas</span></label>
+            </div>
+          </fieldset>
+          <fieldset class="campo">
+            <legend class="sr-only">Qué pedidos mostrar</legend>
+            <div class="seg">
+              <label><input type="radio" name="seg-est" value="curso" checked><span id="f-seg-curso">En curso</span></label>
+              <label><input type="radio" name="seg-est" value="entregados"><span id="f-seg-ent">Entregados</span></label>
+            </div>
+          </fieldset>
+        </div>
+        <button class="btn-sec" id="seg-actualizar" type="button">Actualizar lista</button>
+      </div>
+      <div id="seg-lista"></div>
+    </main>
+
+    <!-- Decorador -->
+    <main class="deco" id="mod-decorador" role="tabpanel" hidden>
+      <div class="deco-barra">
+        <fieldset class="campo">
+          <legend class="sr-only">Qué arreglos mostrar</legend>
+          <div class="seg">
+            <label><input type="radio" name="filtro-deco" value="porhacer" checked><span id="f-deco-pend">Por hacer</span></label>
+            <label><input type="radio" name="filtro-deco" value="hechos"><span id="f-deco-hechos">Terminados</span></label>
+          </div>
+        </fieldset>
+        <button class="btn-sec" id="deco-actualizar" type="button">Actualizar lista</button>
+      </div>
+      <div class="progreso" id="progreso" hidden>
+        <p id="progreso-txt"></p>
+        <div class="pista" role="progressbar" aria-labelledby="progreso-txt" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progreso-barra"><i id="progreso-relleno"></i></div>
+      </div>
+      <div id="deco-lista"></div>
+    </main>
+
+    <!-- Entregador -->
+    <main class="deco" id="mod-entregador" role="tabpanel" hidden>
+      <div class="deco-barra">
+        <fieldset class="campo">
+          <legend class="sr-only">Qué entregas mostrar</legend>
+          <div class="seg">
+            <label><input type="radio" name="filtro-ent" value="entregar" checked><span id="f-ent-listos">Para entregar</span></label>
+            <label><input type="radio" name="filtro-ent" value="armando"><span id="f-ent-armando">Los están armando</span></label>
+            <label><input type="radio" name="filtro-ent" value="hechas"><span id="f-ent-hechas">Entregados</span></label>
+          </div>
+        </fieldset>
+        <button class="btn-sec" id="ent-actualizar" type="button">Actualizar lista</button>
+      </div>
+      <div id="ent-lista"></div>
+    </main>
+
+    <!-- Finanzas (Administrador) -->
+    <main class="adm" id="mod-finanzas" role="tabpanel" hidden>
+      <div class="deco-barra">
+        <div class="fin-mes">
+          <button class="fin-flecha" id="fin-ant" type="button" aria-label="Mes anterior">‹</button>
+          <output id="fin-mes-txt" aria-live="polite"></output>
+          <button class="fin-flecha" id="fin-sig" type="button" aria-label="Mes siguiente">›</button>
+        </div>
+        <button class="btn-sec" id="fin-recargar" type="button">Actualizar</button>
+      </div>
+      <div class="fin-acciones">
+        <button class="tarea-btn" id="fin-gasto" type="button">+ Registrar gasto</button>
+        <button class="tarea-btn deshacer" id="fin-retiro" type="button">Me pagué</button>
+        <button class="tarea-btn deshacer" id="fin-venta" type="button">Venta sin pedido</button>
+      </div>
+      <fieldset class="campo adm-vistas">
+        <legend class="sr-only">Qué ver</legend>
+        <div class="seg">
+          <label><input type="radio" name="fin-vista" value="resumen" checked><span>Mi negocio</span></label>
+          <label><input type="radio" name="fin-vista" value="movimientos"><span id="fin-v-mov">Movimientos</span></label>
+          <label><input type="radio" name="fin-vista" value="cobrar"><span id="fin-v-cob">Por cobrar</span></label>
+          <label><input type="radio" name="fin-vista" value="caja"><span>Caja de hoy</span></label>
+          <label><input type="radio" name="fin-vista" value="fijos"><span>Gastos fijos y meta</span></label>
+        </div>
+      </fieldset>
+      <div id="fin-contenido"></div>
+    </main>
+
+    <!-- Administrador -->
+    <main class="adm" id="mod-admin" role="tabpanel" hidden>
+      <div class="deco-barra" id="adm-filtros">
+        <div class="barra-filtros">
+          <fieldset class="campo">
+            <legend class="sr-only">Periodo</legend>
+            <div class="seg">
+              <label><input type="radio" name="adm-per" value="hoy" checked><span>Hoy</span></label>
+              <label><input type="radio" name="adm-per" value="ayer"><span>Ayer</span></label>
+              <label><input type="radio" name="adm-per" value="semana"><span>7 días</span></label>
+              <label><input type="radio" name="adm-per" value="mes"><span>Este mes</span></label>
+              <label><input type="radio" name="adm-per" value="otro"><span>Otro</span></label>
+            </div>
+          </fieldset>
+          <fieldset class="campo">
+            <legend class="sr-only">Contar las ventas por</legend>
+            <div class="seg">
+              <label><input type="radio" name="adm-base" value="venta" checked><span>Fecha de venta</span></label>
+              <label><input type="radio" name="adm-base" value="entrega"><span>Fecha de entrega</span></label>
+            </div>
+          </fieldset>
+        </div>
+        <button class="btn-sec" id="adm-recargar" type="button">Actualizar</button>
+      </div>
+      <div class="adm-rango" id="adm-rango" hidden>
+        <div class="campo"><label class="etq" for="adm-desde">Desde</label><input class="ctl" id="adm-desde" type="date"></div>
+        <div class="campo"><label class="etq" for="adm-hasta">Hasta</label><input class="ctl" id="adm-hasta" type="date"></div>
+        <p class="msg" id="adm-rango-error" style="display:none"></p>
+      </div>
+      <p class="adm-leyenda" id="adm-leyenda"></p>
+      <fieldset class="campo adm-vistas">
+        <legend class="sr-only">Qué ver</legend>
+        <div class="seg">
+          <label><input type="radio" name="adm-vista" value="resumen" checked><span>Resumen</span></label>
+          <label><input type="radio" name="adm-vista" value="pedidos"><span id="adm-vista-ped">Pedidos</span></label>
+        </div>
+      </fieldset>
+      <div id="adm-resumen"></div>
+      <div id="adm-pedidos" hidden>
+        <div class="adm-buscar">
+          <input class="ctl" id="adm-q" type="search" placeholder="Buscar pedido o persona…" aria-label="Buscar pedidos" autocomplete="off">
+          <select class="ctl" id="adm-est" aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option>
+            <option>Pendiente</option><option>En preparación</option><option>Listo</option><option>En camino</option><option>Entregado</option><option>Cancelado</option>
+          </select>
+        </div>
+        <p class="adm-cuenta" id="adm-cuenta"></p>
+        <div class="adm-lista" id="adm-lista"></div>
+      </div>
+    </main>
+
+    <!-- Administrador: ajustes del negocio y del equipo (se abre desde la cabecera) -->
+    <main class="adm" id="mod-ajustes" role="region" aria-label="Ajustes" hidden>
+      <fieldset class="campo adm-vistas">
+        <legend class="sr-only">Qué ajustar</legend>
+        <div class="seg">
+          <label><input type="radio" name="aj-vista" value="negocio" checked><span>Mi negocio</span></label>
+          <label><input type="radio" name="aj-vista" value="equipo"><span>Mi equipo</span></label>
+        </div>
+      </fieldset>
+      <div id="aj-contenido"></div>
+    </main>
+  </div>
+
+  <!-- Crear o cambiar una persona del equipo (Ajustes) -->
+  <dialog id="dlg-usuario" aria-labelledby="usr-titulo">
+    <form class="dlg" id="form-usuario" method="dialog" novalidate>
+      <h2 id="usr-titulo">Agregar persona</h2>
+      <div class="campo">
+        <label class="etq" for="usr-nombre">Nombre</label>
+        <input class="ctl" id="usr-nombre" type="text" maxlength="60" autocapitalize="words" placeholder="Ej. Ana Rojas">
+      </div>
+      <div class="campo" id="usr-bloque-usuario">
+        <label class="etq" for="usr-usuario">Usuario para entrar</label>
+        <input class="ctl" id="usr-usuario" type="text" maxlength="30" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="Ej. ana">
+        <p class="ayuda">Sin espacios ni tildes. No se puede cambiar después.</p>
+      </div>
+      <fieldset class="campo">
+        <legend class="etq">Qué hace en el negocio</legend>
+        <div class="pila-checks" id="usr-roles"></div>
+      </fieldset>
+      <div class="campo">
+        <label class="etq" for="usr-clave" id="usr-clave-etq">Clave</label>
+        <input class="ctl" id="usr-clave" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <p class="ayuda" id="usr-clave-ayuda"></p>
+      </div>
+      <label class="check" id="usr-bloque-activo"><input type="checkbox" id="usr-activo"> <span>Puede entrar a la app</span></label>
+      <p class="msg" id="usr-error" style="display:none"></p>
+      <div class="dlg-botones">
+        <button class="btn-sec" id="usr-volver" type="button">Volver</button>
+        <button class="guardar" id="usr-confirmar" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Entregar: foto y quién recibió -->
+  <dialog id="dlg-entrega" aria-labelledby="ent-titulo">
+    <form class="dlg" id="form-entrega" method="dialog" novalidate>
+      <h2 id="ent-titulo"></h2>
+      <div class="campo">
+        <span class="etq" id="ent-foto-etq">Foto de la entrega</span>
+        <label class="foto-zona" id="ent-zona">
+          <input class="sr-only" id="ent-foto" type="file" accept="image/*" capture="environment" aria-labelledby="ent-foto-etq">
+          <span id="ent-zona-txt">Tocar para tomar la foto</span>
+          <img id="ent-previa" alt="Vista previa de la foto de entrega" hidden>
+        </label>
+        <p class="ayuda" id="ent-ayuda"></p>
+        <p class="msg" id="ent-error" style="display:none"></p>
+      </div>
+      <div class="campo">
+        <label class="etq" for="ent-recibio">Quién recibió (opcional)</label>
+        <input class="ctl" id="ent-recibio" type="text" maxlength="80" placeholder="Nombre de quien recibe">
+      </div>
+      <div class="cobro" id="ent-cobro" hidden>
+        <b id="ent-cobro-txt"></b>
+        <label class="check"><input type="checkbox" id="ent-cobrado" checked> <span>Ya me pagó el saldo</span></label>
+        <select class="ctl" id="ent-metodo" aria-label="Cómo pagó el saldo"></select>
+      </div>
+      <div class="dlg-botones">
+        <button class="btn-sec" id="ent-cancelar" type="button">Cancelar</button>
+        <button class="guardar" id="ent-confirmar" type="submit">Confirmar entrega</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Ver la foto de entrega -->
+  <dialog id="dlg-foto" aria-labelledby="foto-titulo">
+    <div class="dlg">
+      <h2 id="foto-titulo">Foto de la entrega</h2>
+      <p class="ayuda" id="foto-estado">Cargando foto…</p>
+      <img id="foto-img" alt="Foto de la entrega" hidden>
+      <button class="btn-sec" id="foto-cerrar" type="button">Cerrar</button>
+    </div>
+  </dialog>
+
+  <!-- Cancelar un pedido -->
+  <dialog id="dlg-cancelar" aria-labelledby="can-titulo">
+    <form class="dlg" id="form-cancelar" method="dialog" novalidate>
+      <h2 id="can-titulo">Cancelar pedido</h2>
+      <p class="ayuda" id="can-aviso"></p>
+      <div class="campo">
+        <label class="etq" for="can-motivo">Motivo de la cancelación</label>
+        <textarea class="ctl" id="can-motivo" rows="3" maxlength="200" placeholder="Ej. El cliente ya no lo necesita"></textarea>
+        <p class="msg" id="can-error" style="display:none"></p>
+      </div>
+      <div class="dlg-botones">
+        <button class="btn-sec" id="can-volver" type="button">Volver</button>
+        <button class="guardar peligro" id="can-confirmar" type="submit">Cancelar pedido</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Registrar un abono de un pedido -->
+  <dialog id="dlg-abono" aria-labelledby="abo-titulo">
+    <form class="dlg" id="form-abono" method="dialog" novalidate>
+      <h2 id="abo-titulo">Registrar pago</h2>
+      <p class="ayuda" id="abo-aviso"></p>
+      <div class="campo">
+        <label class="etq" for="abo-valor">Cuánto pagó</label>
+        <div class="dinero"><b>$</b><input class="ctl" id="abo-valor" type="text" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <div class="campo">
+        <label class="etq" for="abo-metodo">Cómo pagó</label>
+        <select class="ctl" id="abo-metodo"></select>
+      </div>
+      <p class="msg" id="abo-error" style="display:none"></p>
+      <div class="dlg-botones">
+        <button class="btn-sec" id="abo-volver" type="button">Volver</button>
+        <button class="guardar" id="abo-confirmar" type="submit">Guardar pago</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Registrar gasto, retiro o venta directa -->
+  <dialog id="dlg-mov" aria-labelledby="mov-titulo">
+    <form class="dlg" id="form-mov" method="dialog" novalidate>
+      <h2 id="mov-titulo">Registrar</h2>
+      <fieldset class="campo">
+        <legend class="etq">Qué vas a registrar</legend>
+        <div class="seg">
+          <label><input type="radio" name="mov-tipo" value="Gasto" checked><span>Gasto</span></label>
+          <label><input type="radio" name="mov-tipo" value="Retiro"><span>Me pagué</span></label>
+          <label><input type="radio" name="mov-tipo" value="Ingreso"><span>Venta sin pedido</span></label>
+        </div>
+      </fieldset>
+      <p class="ayuda" id="mov-ayuda"></p>
+      <div class="campo" id="mov-bloque-cat">
+        <label class="etq" for="mov-cat">Categoría</label>
+        <select class="ctl" id="mov-cat"></select>
+      </div>
+      <fieldset class="campo" id="mov-bloque-clase">
+        <legend class="etq">¿Se paga todos los meses igual?</legend>
+        <div class="seg">
+          <label><input type="radio" name="mov-clase" value="Variable" checked><span>No, depende de lo que venda</span></label>
+          <label><input type="radio" name="mov-clase" value="Fijo"><span>Sí, es fijo</span></label>
+        </div>
+      </fieldset>
+      <div class="fila">
+        <div class="campo">
+          <label class="etq" for="mov-valor">Valor</label>
+          <div class="dinero"><b>$</b><input class="ctl" id="mov-valor" type="text" inputmode="numeric" placeholder="0"></div>
+        </div>
+        <div class="campo">
+          <label class="etq" for="mov-fecha">Fecha</label>
+          <input class="ctl" id="mov-fecha" type="date">
+        </div>
+      </div>
+      <div class="campo">
+        <label class="etq" for="mov-metodo">Con qué se pagó</label>
+        <select class="ctl" id="mov-metodo"></select>
+      </div>
+      <div class="campo">
+        <label class="etq" for="mov-desc">Detalle (opcional)</label>
+        <input class="ctl" id="mov-desc" type="text" maxlength="200" placeholder="Ej. 2 paquetes de rosas en el mercado">
+      </div>
+      <p class="msg" id="mov-error" style="display:none"></p>
+      <div class="dlg-botones">
+        <button class="btn-sec" id="mov-volver" type="button">Volver</button>
+        <button class="guardar" id="mov-confirmar" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      <?!= incluir_('JsBase') ?>
+      <?!= incluir_('JsEquipo') ?>
+      <?!= incluir_('JsPedido') ?>
+      <?!= incluir_('JsVentas') ?>
+      <?!= incluir_('JsFinanzas') ?>
+      <?!= incluir_('JsTema') ?>
+      <?!= incluir_('JsAjustes') ?>
+      <?!= incluir_('JsBienvenida') ?>
+
+      /* ---------- Inicio ---------- */
+      aplicarModo();
+      cargarLogo();
+      cargarConfig();
+      leerCodigoEnlace(function (codigo) {
+        // El enlace de activación (…?activar=CODIGO) abre la bienvenida aunque haya una sesión guardada.
+        if (codigo) { mostrarBienvenida(codigo); return; }
+        var t = leerToken();
+        if (!t) { mostrarLogin(''); return; }
+        llamar('getSesion', [t]).then(function (r) {
+          if (r && r.ok) { S.token = t; entrar(r); }
+          else { borrarToken(); mostrarLogin(''); }
+        }).catch(function () {
+          mostrarLogin('No se pudo conectar. Revisa tu conexión y vuelve a intentar.');
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

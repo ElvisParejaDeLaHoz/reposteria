@@ -1,0 +1,491 @@
+/* JsFinanzas: Finanzas: punto de equilibrio, gastos, retiros, cobros, caja y gastos fijos.
+   Se mete dentro del mismo (function () { ... })() de Index.html: comparte sus variables. */
+      /* ---------- Finanzas: punto de equilibrio, gastos, cobros y caja ---------- */
+      var FIN = { mes: '', vista: 'resumen', datos: null, json: '', seq: 0, cierre: null, fijosBorrador: null };
+      var CAT_FIJAS = /arriendo|servicios|internet|tel[eé]fono|n[oó]mina|sueldo|impuesto|seguro|cuota|cr[eé]dito/i;
+
+      function mesActual() { return hoyISO().slice(0, 7); }
+      function fmtMes(mes) {
+        var p = mes.split('-').map(Number);
+        return cap(MESES[p[1] - 1]) + ' de ' + p[0];
+      }
+      function moverMes(mes, n) {
+        var p = mes.split('-').map(Number);
+        var d = new Date(p[0], p[1] - 1 + n, 1);
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1);
+      }
+      function pct(x) { return Math.round(x * 100); }
+
+      function cargarFinanzas(silencioso) {
+        if (!FIN.mes) FIN.mes = mesActual();
+        $('#fin-mes-txt').textContent = fmtMes(FIN.mes);
+        $('#fin-sig').disabled = FIN.mes >= mesActual();
+        var mi = ++FIN.seq;
+        $('#fin-recargar').disabled = true;
+        if (!silencioso && !FIN.datos) { $('#fin-contenido').textContent = ''; $('#fin-contenido').appendChild(vacio('Cargando tus números…')); }
+        api('getFinanzas', [FIN.mes]).then(function (r) {
+          if (mi !== FIN.seq) return;
+          if (r && r.ok) {
+            var j = JSON.stringify(r);
+            if (j !== FIN.json || !silencioso) { FIN.json = j; FIN.datos = r; renderFinanzas(); }
+          } else if (r && r.error) toast(r.error, true);
+        }).catch(function (e) {
+          if (e && e.message !== 'sesion' && !silencioso) toast('No se pudieron cargar las finanzas. Revisa tu conexión.', true);
+        }).then(function () { if (mi === FIN.seq) $('#fin-recargar').disabled = false; });
+      }
+
+      $('#fin-ant').addEventListener('click', function () { FIN.mes = moverMes(FIN.mes || mesActual(), -1); FIN.datos = null; FIN.json = ''; cargarFinanzas(false); });
+      $('#fin-sig').addEventListener('click', function () { FIN.mes = moverMes(FIN.mes || mesActual(), 1); FIN.datos = null; FIN.json = ''; cargarFinanzas(false); });
+      $('#fin-recargar').addEventListener('click', function () { cargarFinanzas(false); });
+      $$('input[name="fin-vista"]').forEach(function (r) {
+        r.addEventListener('change', function () { FIN.vista = r.value; FIN.cierre = null; renderFinanzas(); });
+      });
+      function irVistaFin(v) {
+        FIN.vista = v;
+        var r = $('input[name="fin-vista"][value="' + v + '"]');
+        if (r) r.checked = true;
+        renderFinanzas();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      function renderFinanzas() {
+        var d = FIN.datos, c = $('#fin-contenido');
+        if (!d) return;
+        $('#fin-v-mov').textContent = 'Movimientos (' + d.movimientos.filter(function (x) { return !x.anulado; }).length + ')';
+        $('#fin-v-cob').textContent = 'Por cobrar (' + d.porCobrar.length + ')';
+        c.textContent = '';
+        if (FIN.vista === 'movimientos') finMovimientos(c, d);
+        else if (FIN.vista === 'cobrar') finCobrar(c, d);
+        else if (FIN.vista === 'caja') finCaja(c, d);
+        else if (FIN.vista === 'fijos') finFijos(c, d);
+        else finResumen(c, d);
+      }
+
+      /* --- Mi negocio: punto de equilibrio y resultado del mes --- */
+      function finResumen(c, d) {
+        var a = d.actual, e = d.equilibrio, ant = d.anterior;
+        c.appendChild(tarjetaEquilibrio(d));
+
+        var porCobrar = d.porCobrar.reduce(function (s, x) { return s + x.saldo; }, 0);
+        var k = el('div', 'adm-kpis');
+        var cambio = ant.ventas > 0 ? Math.round((a.ventas - ant.ventas) / ant.ventas * 100) : null;
+        k.appendChild(kpi('Vendido en el mes', fmtDinero(a.ventas),
+          plural(a.pedidos, 'pedido', 'pedidos') + (cambio != null ? ' · ' + (cambio >= 0 ? '+' : '') + cambio + ' % que el mes anterior' : ''), 'grande'));
+        k.appendChild(kpi('Ganancia', fmtDinero(a.ganancia), a.ventas ? pct(a.ganancia / a.ventas) + ' % de lo vendido' : 'Ventas − costos − gastos', a.ganancia >= 0 ? 'bien' : 'mal'));
+        k.appendChild(kpi('Recibido', fmtDinero(a.recibido), 'Plata que entró de verdad'));
+        k.appendChild(kpi('Gastos', fmtDinero(a.gastosVariables + a.gastosFijos), 'Fijos ' + fmtDinero(a.gastosFijos)));
+        k.appendChild(kpi('Me pagué', fmtDinero(a.retiros), 'Retiros de la dueña'));
+        k.appendChild(kpi('Me deben', fmtDinero(porCobrar), plural(d.porCobrar.length, 'pedido', 'pedidos') + ' con saldo', porCobrar ? 'mal' : ''));
+        c.appendChild(k);
+
+        var g = el('div', 'adm-grid');
+        g.appendChild(panelResultado(a));
+        if (d.porCategoria.length) g.appendChild(panelGastos(d.porCategoria));
+        g.appendChild(panelComparar(a, ant, d.mes));
+        c.appendChild(g);
+      }
+
+      function tarjetaEquilibrio(d) {
+        var e = d.equilibrio, a = d.actual;
+        var t = el('section', 'equilibrio');
+        t.appendChild(el('h2', null, 'Tu punto de equilibrio'));
+        if (e.margen == null) {
+          t.appendChild(el('p', null, 'Todavía no hay ventas en los últimos 3 meses. Cuando registres pedidos y gastos, aquí verás cuánto necesitas vender para no perder plata.'));
+          return t;
+        }
+        if (e.margen <= 0) {
+          t.appendChild(el('p', null, 'Hoy los costos de lo que vendes son iguales o mayores que lo que cobras: con cada venta pierdes plata. Revisa tus precios o el costo de tus materiales.'));
+          return t;
+        }
+        var margenTxt = 'De cada $100 que vendes, te quedan $' + pct(e.margen) + ' después de pagar materiales e insumos.';
+        if (!e.fijos) {
+          t.appendChild(el('p', null, margenTxt));
+          var cons = el('p', 'consejo');
+          cons.appendChild(el('b', null, 'Falta un dato: '));
+          cons.appendChild(document.createTextNode('escribe tus gastos fijos (arriendo, servicios, sueldos…) para saber cuánto necesitas vender al mes.'));
+          t.appendChild(cons);
+          var b = el('button', 'btn-sec', 'Escribir mis gastos fijos');
+          b.type = 'button';
+          b.addEventListener('click', function () { irVistaFin('fijos'); });
+          t.appendChild(b);
+          return t;
+        }
+        t.appendChild(el('p', null, 'Para cubrir tus gastos fijos de ' + fmtDinero(e.fijos) + ' necesitas vender ' + fmtDinero(e.pe) + ' al mes.'));
+        t.appendChild(el('p', 'grande', 'Llevas ' + fmtDinero(a.ventas)));
+        var tope = Math.max(e.meta || e.pe, e.pe, 1);
+        var med = el('div', 'medidor');
+        med.setAttribute('role', 'progressbar');
+        med.setAttribute('aria-label', 'Ventas del mes frente al punto de equilibrio');
+        med.setAttribute('aria-valuemin', '0');
+        med.setAttribute('aria-valuemax', String(tope));
+        med.setAttribute('aria-valuenow', String(Math.min(a.ventas, tope)));
+        var barra = el('i', a.ventas >= e.pe ? 'paso' : '');
+        barra.style.width = Math.min(100, Math.round(a.ventas / tope * 100)) + '%';
+        med.appendChild(barra);
+        t.appendChild(med);
+        var marcas = el('div', 'medidor-marcas');
+        marcas.appendChild(el('span', null, 'Equilibrio ' + fmtDinero(e.pe)));
+        if (e.sueldo && e.meta) marcas.appendChild(el('span', null, 'Con tu sueldo ' + fmtDinero(e.meta)));
+        t.appendChild(marcas);
+
+        var consejo = el('p', 'consejo');
+        var falta = e.pe - a.ventas;
+        if (falta > 0) {
+          consejo.appendChild(el('b', null, 'Te faltan ' + fmtDinero(falta) + '. '));
+          consejo.appendChild(document.createTextNode(e.esActual && e.diasRestantes > 0
+            ? 'Son unos ' + fmtDinero(Math.ceil(falta / e.diasRestantes / 100) * 100) + ' por día en los ' + plural(e.diasRestantes, 'día', 'días') + ' que quedan del mes.'
+            : 'Este mes no alcanzó a cubrir los gastos fijos.'));
+        } else if (e.sueldo && e.meta && a.ventas < e.meta) {
+          consejo.appendChild(el('b', null, '¡Ya cubriste los gastos fijos! '));
+          consejo.appendChild(document.createTextNode('Para ganarte tu sueldo de ' + fmtDinero(e.sueldo) + ' te faltan ' + fmtDinero(e.meta - a.ventas) + ' en ventas.'));
+        } else {
+          consejo.appendChild(el('b', null, '¡Pasaste el punto de equilibrio! '));
+          consejo.appendChild(document.createTextNode('Desde aquí, de cada $100 que vendes te quedan $' + pct(e.margen) + ' de ganancia.'));
+        }
+        t.appendChild(consejo);
+        t.appendChild(el('p', null, margenTxt + (a.pedidos && a.conCosto < a.pedidos ? ' Ojo: ' + (a.pedidos - a.conCosto) + ' de ' + a.pedidos + ' pedidos del mes no tienen costo y la cuenta puede verse mejor de lo que es.' : '')));
+        return t;
+      }
+
+      function filaCuenta(cont, etq, val, clase) {
+        var r = el('div', clase || '');
+        r.appendChild(el('span', null, etq));
+        r.appendChild(el('span', null, val));
+        cont.appendChild(r);
+      }
+
+      function panelResultado(a) {
+        var p = panel('Resultado del mes', 'Así se calcula tu ganancia.');
+        var cu = el('div', 'caja-cuentas');
+        filaCuenta(cu, 'Ventas', fmtDinero(a.ventas));
+        filaCuenta(cu, '− Costo de materiales de los pedidos', fmtDinero(a.costoPedidos));
+        filaCuenta(cu, '− Gastos variables', fmtDinero(a.gastosVariables));
+        filaCuenta(cu, '− Gastos fijos', fmtDinero(a.gastosFijos));
+        filaCuenta(cu, '= Ganancia del negocio', fmtDinero(a.ganancia), 'tot');
+        filaCuenta(cu, '− Lo que te pagaste', fmtDinero(a.retiros));
+        filaCuenta(cu, '= Queda en el negocio', fmtDinero(a.ganancia - a.retiros), 'tot');
+        p.appendChild(cu);
+        if (a.retiros > a.ganancia && a.retiros > 0) {
+          p.appendChild(el('p', 'resultado mal', 'Este mes sacaste más plata de la que ganó el negocio. Si se repite, el negocio se descapitaliza.'));
+        }
+        return p;
+      }
+
+      function panelGastos(filas) {
+        var p = panel('¿En qué se va la plata?', 'Gastos del mes por categoría.');
+        var max = 0, suma = 0;
+        filas.forEach(function (x) { max = Math.max(max, x.total); suma += x.total; });
+        var ul = el('ul', 'barras');
+        filas.forEach(function (x) {
+          var li = el('li', 'barra-fila');
+          var t = el('div', 'barra-txt');
+          t.appendChild(libre(el('span', null, x.k)));
+          t.appendChild(el('span', null, fmtDinero(x.total)));
+          li.appendChild(t);
+          var pista = el('div', 'barra-pista');
+          var i = el('i');
+          i.style.width = (max ? Math.max(2, Math.round(x.total / max * 100)) : 0) + '%';
+          pista.appendChild(i);
+          li.appendChild(pista);
+          li.appendChild(el('small', null, plural(x.n, 'gasto', 'gastos') + (suma ? ' · ' + Math.round(x.total / suma * 100) + ' % del total' : '')));
+          ul.appendChild(li);
+        });
+        p.appendChild(ul);
+        return p;
+      }
+
+      function panelComparar(a, b, mes) {
+        var p = panel('Comparado con ' + fmtMes(moverMes(mes, -1)).toLowerCase());
+        var cu = el('div', 'caja-cuentas');
+        function fila(etq, x, y) {
+          var dif = x - y;
+          filaCuenta(cu, etq, fmtDinero(x) + '  (' + (dif >= 0 ? '+' : '−') + fmtDinero(Math.abs(dif)) + ')');
+        }
+        fila('Ventas', a.ventas, b.ventas);
+        fila('Gastos', a.gastosVariables + a.gastosFijos, b.gastosVariables + b.gastosFijos);
+        fila('Ganancia', a.ganancia, b.ganancia);
+        fila('Recibido', a.recibido, b.recibido);
+        p.appendChild(cu);
+        return p;
+      }
+
+      /* --- Movimientos del mes --- */
+      function finMovimientos(c, d) {
+        if (!d.movimientos.length) {
+          c.appendChild(vacio('No hay movimientos en ' + fmtMes(d.mes).toLowerCase(), 'Los pagos de pedidos aparecen solos. Los gastos y retiros los registras con los botones de arriba.'));
+          return;
+        }
+        var p = panel('Movimientos de ' + fmtMes(d.mes).toLowerCase(), 'Lo que entró y salió. Un movimiento equivocado se anula, no se borra.');
+        d.movimientos.forEach(function (x) {
+          var m = el('div', 'mov' + (x.anulado ? ' anulado' : ''));
+          m.appendChild(libre(el('div', 'mov-cat', x.categoria || x.tipo)));
+          var entra = x.tipo === 'Ingreso';
+          m.appendChild(el('div', 'mov-val ' + (entra ? 'entra' : 'sale'), (entra ? '+' : '−') + fmtDinero(x.valor)));
+          var sub = el('div', 'mov-sub');
+          sub.appendChild(el('span', null, cap(fmtFecha(x.fecha))));
+          sub.appendChild(el('span', null, x.tipo === 'Gasto' ? 'Gasto ' + (x.clase || 'Variable').toLowerCase() : (x.tipo === 'Retiro' ? 'Me pagué' : 'Ingreso')));
+          if (x.metodo) sub.appendChild(el('span', null, x.metodo));
+          if (x.descripcion) sub.appendChild(libre(el('span', null, x.descripcion)));
+          if (x.registro) sub.appendChild(el('span', null, 'por ' + x.registro));
+          if (x.anulado) sub.appendChild(el('span', null, 'Anulado: ' + x.anulado));
+          else {
+            var b = el('button', null, 'Anular');
+            b.type = 'button';
+            b.addEventListener('click', function () { anularMov(x, b); });
+            sub.appendChild(b);
+          }
+          m.appendChild(sub);
+          p.appendChild(m);
+        });
+        c.appendChild(p);
+      }
+
+      function anularMov(x, b) {
+        var aviso = '¿Anular este movimiento de ' + fmtDinero(x.valor) + '?' + (x.pedido ? '\nSe le restará al pago del pedido.' : '');
+        if (!window.confirm(aviso)) return;
+        b.disabled = true;
+        api('anularMovimiento', [x.id, '']).then(function (r) {
+          if (r && r.ok) { toast('Movimiento anulado.'); cargarFinanzas(false); if (x.pedido && usaTablero()) refrescarTablero(true); }
+          else { b.disabled = false; toast((r && r.error) || 'No se pudo anular.', true); }
+        }).catch(function (e) { b.disabled = false; if (e && e.message !== 'sesion') toast('No se pudo anular. Revisa tu conexión.', true); });
+      }
+
+      /* --- Por cobrar --- */
+      function finCobrar(c, d) {
+        if (!d.porCobrar.length) {
+          c.appendChild(vacio('Nadie te debe', 'Los pedidos con saldo pendiente aparecen aquí.'));
+          return;
+        }
+        var total = d.porCobrar.reduce(function (s, x) { return s + x.saldo; }, 0);
+        c.appendChild(el('p', 'adm-cuenta', 'Te deben ' + fmtDinero(total) + ' en ' + plural(d.porCobrar.length, 'pedido', 'pedidos') + '.'));
+        var lista = el('div', 'adm-lista');
+        d.porCobrar.forEach(function (x) {
+          var p = Object.assign({ controlPago: true }, x);
+          var r = el('div', 'reg');
+          var cu = el('div', 'reg-cuerpo');
+          cu.style.borderTop = '0';
+          var dl = el('dl');
+          dato(dl, 'Cliente', p.cliente + (p.para && p.para !== p.cliente ? ' (para ' + p.para + ')' : ''), true);
+          dato(dl, 'Debe', fmtDinero(p.saldo) + ' de ' + fmtDinero(p.total));
+          dato(dl, 'Entrega', cap(fmtFecha(p.fecha)) + ' · ' + p.estado);
+          cu.appendChild(dl);
+          var ac = el('div', 'acciones');
+          ac.appendChild(boton('Registrar pago', '', function () { abrirAbono(p); }));
+          var d2 = soloDigitos(p.telefono);
+          if (/^3\d{9}$/.test(d2)) {
+            var wa = el('a', 'btn-sec', 'Recordar por WhatsApp');
+            wa.href = 'https://wa.me/57' + d2 + '?text=' + encodeURIComponent('Hola ' + p.cliente + ', te escribimos de ' + ((S.config && S.config.nombre) || 'nuestro negocio') + '. Te recordamos el saldo pendiente de ' + fmtDinero(p.saldo) + ' de tu pedido. ¡Gracias!');
+            wa.target = '_blank';
+            wa.rel = 'noopener';
+            wa.style.textDecoration = 'none';
+            ac.appendChild(wa);
+          }
+          cu.appendChild(ac);
+          r.appendChild(cu);
+          lista.appendChild(r);
+        });
+        c.appendChild(lista);
+      }
+
+      /* --- Caja de hoy --- */
+      function finCaja(c, d) {
+        var k = d.caja;
+        var p = panel('Caja de hoy', cap(fmtFecha(k.dia)) + '. Solo cuenta lo que se pagó en efectivo.');
+        var cu = el('div', 'caja-cuentas');
+        filaCuenta(cu, 'Entró en efectivo', fmtDinero(k.entradas));
+        filaCuenta(cu, 'Salió en efectivo (gastos y retiros)', fmtDinero(k.salidas));
+        p.appendChild(cu);
+        if (k.ultimo) p.appendChild(el('p', 'ayuda', k.cerradoHoy
+          ? 'Ya se cerró la caja hoy (' + (k.ultimo.diferencia === 0 ? 'cuadró exacto' : 'diferencia de ' + fmtDinero(k.ultimo.diferencia)) + '). Puedes cerrarla otra vez si hubo más movimientos.'
+          : 'Último cierre: ' + fmtFecha(k.ultimo.fecha) + '.'));
+
+        var form = el('form', 'pila');
+        form.noValidate = true;
+        form.style.marginTop = '14px';
+        function campoDinero(id, etq, ayuda) {
+          var w = el('div', 'campo');
+          var l = el('label', 'etq', etq); l.htmlFor = id;
+          w.appendChild(l);
+          var din = el('div', 'dinero');
+          din.appendChild(el('b', null, '$'));
+          var i = el('input', 'ctl'); i.id = id; i.type = 'text'; i.inputMode = 'numeric'; i.placeholder = '0';
+          i.addEventListener('input', function () { formatearDinero(i); });
+          din.appendChild(i);
+          w.appendChild(din);
+          if (ayuda) w.appendChild(el('p', 'ayuda', ayuda));
+          return w;
+        }
+        form.appendChild(campoDinero('caja-base', 'Base con la que abriste la caja', 'Los billetes y monedas que había al empezar el día.'));
+        form.appendChild(campoDinero('caja-contado', 'Efectivo que contaste ahora'));
+        var wn = el('div', 'campo');
+        var ln = el('label', 'etq', 'Nota (opcional)'); ln.htmlFor = 'caja-nota';
+        wn.appendChild(ln);
+        var nota = el('input', 'ctl'); nota.id = 'caja-nota'; nota.type = 'text'; nota.maxLength = 200;
+        wn.appendChild(nota);
+        form.appendChild(wn);
+        var bt = el('button', 'guardar', 'Cerrar caja');
+        bt.type = 'submit';
+        form.appendChild(bt);
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var contado = $('#caja-contado').value.trim();
+          if (contado === '') { toast('Escribe cuánto efectivo contaste.', true); $('#caja-contado').focus(); return; }
+          bt.disabled = true; bt.textContent = 'Guardando…';
+          api('guardarCierre', [digitos($('#caja-base').value), digitos(contado), nota.value.trim()]).then(function (r) {
+            bt.disabled = false; bt.textContent = 'Cerrar caja';
+            if (r && r.ok) { FIN.cierre = r; cargarFinanzas(false); }
+            else toast((r && r.error) || 'No se pudo cerrar la caja.', true);
+          }).catch(function (er) { bt.disabled = false; bt.textContent = 'Cerrar caja'; if (er && er.message !== 'sesion') toast('No se pudo cerrar la caja. Revisa tu conexión.', true); });
+        });
+        p.appendChild(form);
+
+        if (FIN.cierre) {
+          var r = FIN.cierre, dif = r.diferencia;
+          p.appendChild(el('p', 'resultado ' + (dif === 0 ? 'bien' : 'mal'), dif === 0
+            ? '¡La caja cuadró! Había ' + fmtDinero(r.esperado) + ', tal como debía.'
+            : (dif > 0 ? 'Sobran ' : 'Faltan ') + fmtDinero(Math.abs(dif)) + '. Debía haber ' + fmtDinero(r.esperado) + ' y contaste ' + fmtDinero(r.contado) + '. Revisa si falta registrar algún gasto o pago.'));
+        }
+        c.appendChild(p);
+      }
+
+      /* --- Gastos fijos y meta de sueldo --- */
+      function finFijos(c, d) {
+        var p = panel('Gastos fijos del mes', 'Lo que pagas todos los meses aunque no vendas nada: arriendo, servicios, internet, sueldos, cuotas… Con esto se calcula tu punto de equilibrio.');
+        var cont = el('div');
+        var filas = FIN.fijosBorrador || (d.fijos.length ? d.fijos.map(function (x) { return { concepto: x.concepto, valor: x.valor }; }) : [{ concepto: 'Arriendo', valor: 0 }, { concepto: 'Servicios públicos', valor: 0 }]);
+        FIN.fijosBorrador = filas;
+        var totalEl = el('p', 'adm-cuenta');
+        function total() { totalEl.textContent = 'Total gastos fijos: ' + fmtDinero(filas.reduce(function (s, x) { return s + (Number(x.valor) || 0); }, 0)) + ' al mes'; }
+        function pintar() {
+          cont.textContent = '';
+          filas.forEach(function (x, i) {
+            var f2 = el('div', 'fijo-fila');
+            var n = el('input', 'ctl'); n.type = 'text'; n.maxLength = 60; n.value = x.concepto; n.placeholder = 'Ej. Arriendo';
+            n.setAttribute('aria-label', 'Concepto del gasto fijo ' + (i + 1));
+            n.addEventListener('input', function () { x.concepto = n.value; });
+            f2.appendChild(n);
+            var din = el('div', 'dinero');
+            din.appendChild(el('b', null, '$'));
+            var v = el('input', 'ctl'); v.type = 'text'; v.inputMode = 'numeric'; v.placeholder = '0'; v.value = x.valor ? dineroTexto(x.valor) : '';
+            v.setAttribute('aria-label', 'Valor mensual del gasto fijo ' + (i + 1));
+            v.addEventListener('input', function () { formatearDinero(v); x.valor = digitos(v.value); total(); });
+            din.appendChild(v);
+            f2.appendChild(din);
+            var q = el('button', 'quitar', '×'); q.type = 'button';
+            q.setAttribute('aria-label', 'Quitar este gasto');
+            q.addEventListener('click', function () { filas.splice(i, 1); pintar(); total(); });
+            f2.appendChild(q);
+            cont.appendChild(f2);
+          });
+        }
+        pintar();
+        p.appendChild(cont);
+        var mas = el('button', 'btn-sec', '+ Agregar gasto fijo');
+        mas.type = 'button';
+        mas.style.marginTop = '12px';
+        mas.addEventListener('click', function () { filas.push({ concepto: '', valor: 0 }); pintar(); total(); });
+        p.appendChild(mas);
+        total();
+        p.appendChild(totalEl);
+        c.appendChild(p);
+
+        var p2 = panel('Tu sueldo', 'Tú también trabajas en el negocio. Escribe cuánto quieres ganarte al mes y te diremos cuánto vender para lograrlo.');
+        var din2 = el('div', 'dinero');
+        din2.appendChild(el('b', null, '$'));
+        var su = el('input', 'ctl'); su.type = 'text'; su.inputMode = 'numeric'; su.placeholder = '0';
+        su.setAttribute('aria-label', 'Sueldo que quiero ganarme al mes');
+        su.value = d.equilibrio.sueldo ? dineroTexto(d.equilibrio.sueldo) : '';
+        su.addEventListener('input', function () { formatearDinero(su); });
+        din2.appendChild(su);
+        p2.appendChild(din2);
+        var g = el('button', 'guardar', 'Guardar');
+        g.type = 'button';
+        g.style.marginTop = '14px';
+        g.addEventListener('click', function () {
+          var lista = filas.filter(function (x) { return (x.concepto || '').trim() || x.valor; })
+            .map(function (x) { return { concepto: (x.concepto || '').trim(), valor: Number(x.valor) || 0 }; });
+          g.disabled = true; g.textContent = 'Guardando…';
+          api('guardarFijos', [lista, digitos(su.value)]).then(function (r) {
+            g.disabled = false; g.textContent = 'Guardar';
+            if (r && r.ok) { FIN.fijosBorrador = null; toast('Guardado. Ya puedes ver tu punto de equilibrio.'); FIN.vista = 'resumen'; $('input[name="fin-vista"][value="resumen"]').checked = true; cargarFinanzas(false); }
+            else toast((r && r.error) || 'No se pudo guardar.', true);
+          }).catch(function (e) { g.disabled = false; g.textContent = 'Guardar'; if (e && e.message !== 'sesion') toast('No se pudo guardar. Revisa tu conexión.', true); });
+        });
+        p2.appendChild(g);
+        c.appendChild(p2);
+      }
+
+      /* --- Registrar gasto, retiro o venta sin pedido --- */
+      var dlgMov = $('#dlg-mov');
+      var MOV_AYUDA = {
+        Gasto: 'Lo que pagas para que el negocio funcione: insumos, empaques, arriendo, servicios…',
+        Retiro: 'La plata que sacas del negocio para ti o tu casa. No es un gasto del negocio, pero sí sale de la caja. Anotarla te ayuda a no mezclar tu plata con la del negocio.',
+        Ingreso: 'Una venta que no pasó por un pedido, por ejemplo algo que vendiste en el mostrador.'
+      };
+      function errorMov(m) { var e = $('#mov-error'); e.style.display = m ? 'block' : 'none'; e.textContent = m || ''; }
+      function tipoMov() { return valor($('#form-mov'), 'mov-tipo'); }
+      function pintarTipoMov() {
+        var t = tipoMov();
+        $('#mov-titulo').textContent = t === 'Gasto' ? 'Registrar gasto' : (t === 'Retiro' ? 'Registrar lo que me pagué' : 'Registrar venta sin pedido');
+        $('#mov-ayuda').textContent = MOV_AYUDA[t];
+        $('#mov-bloque-cat').hidden = t !== 'Gasto';
+        $('#mov-bloque-clase').hidden = t !== 'Gasto';
+        $('#mov-metodo').previousElementSibling.textContent = t === 'Ingreso' ? 'Cómo te pagaron' : (t === 'Retiro' ? 'De dónde sacaste la plata' : 'Con qué se pagó');
+        errorMov('');
+      }
+      function abrirMov(tipo) {
+        var d = FIN.datos;
+        var r = $('#form-mov').querySelector('input[name="mov-tipo"][value="' + tipo + '"]');
+        if (r) r.checked = true;
+        var cats = (d && d.categorias) || ['Otros'];
+        var sel = $('#mov-cat');
+        sel.textContent = '';
+        cats.forEach(function (x) { var o = el('option', null, x); o.value = x; sel.appendChild(o); });
+        llenarMetodos($('#mov-metodo'), 'Efectivo');
+        $('#mov-valor').value = '';
+        $('#mov-desc').value = '';
+        var hoy = hoyISO();
+        $('#mov-fecha').value = FIN.mes && FIN.mes !== hoy.slice(0, 7) ? FIN.mes + '-01' : hoy;
+        $('#mov-fecha').max = sumarDias(hoy, 1);
+        claseSegunCategoria();
+        $('#mov-confirmar').disabled = false;
+        $('#mov-confirmar').textContent = 'Guardar';
+        pintarTipoMov();
+        dlgMov.showModal();
+        $('#mov-valor').focus();
+      }
+      function claseSegunCategoria() {
+        var fijo = CAT_FIJAS.test($('#mov-cat').value);
+        var r = $('#form-mov').querySelector('input[name="mov-clase"][value="' + (fijo ? 'Fijo' : 'Variable') + '"]');
+        if (r) r.checked = true;
+      }
+      $('#mov-cat').addEventListener('change', claseSegunCategoria);
+      $$('input[name="mov-tipo"]').forEach(function (r) { r.addEventListener('change', pintarTipoMov); });
+      $('#mov-valor').addEventListener('input', function () { formatearDinero(this); errorMov(''); });
+      $('#mov-volver').addEventListener('click', function () { dlgMov.close(); });
+      $('#fin-gasto').addEventListener('click', function () { abrirMov('Gasto'); });
+      $('#fin-retiro').addEventListener('click', function () { abrirMov('Retiro'); });
+      $('#fin-venta').addEventListener('click', function () { abrirMov('Ingreso'); });
+      $('#form-mov').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var v = digitos($('#mov-valor').value);
+        if (v <= 0) { errorMov('Escribe el valor.'); $('#mov-valor').focus(); return; }
+        if (!$('#mov-fecha').value) { errorMov('Elige la fecha.'); return; }
+        var t = tipoMov();
+        var datos = {
+          tipo: t, valor: v, fecha: $('#mov-fecha').value, metodo: $('#mov-metodo').value,
+          categoria: t === 'Gasto' ? $('#mov-cat').value : '', clase: valor($('#form-mov'), 'mov-clase'),
+          descripcion: $('#mov-desc').value.trim()
+        };
+        var b = $('#mov-confirmar');
+        b.disabled = true; b.textContent = 'Guardando…';
+        api('registrarMovimiento', [datos]).then(function (r) {
+          b.disabled = false; b.textContent = 'Guardar';
+          if (r && r.ok) {
+            dlgMov.close();
+            toast(t === 'Gasto' ? 'Gasto registrado.' : (t === 'Retiro' ? 'Retiro registrado.' : 'Venta registrada.'));
+            cargarFinanzas(false);
+          } else errorMov((r && r.error) || 'No se pudo guardar.');
+        }).catch(function (er) { b.disabled = false; b.textContent = 'Guardar'; if (er && er.message !== 'sesion') errorMov('No se pudo guardar. Revisa tu conexión.'); });
+      });
+

@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Elka · Ordenamos tu negocio</title>
+  <meta name="description" content="App gratis de pedidos y finanzas para emprendedoras. Elka la instala, la mantiene y te acompaña con tus números.">
+  <meta name="theme-color" content="#1F5E4A">
+  <meta property="og:title" content="Elka · Ordenamos tu negocio, acompañamos tu crecimiento">
+  <meta property="og:description" content="Pedidos, entregas y finanzas claras para tu negocio, desde el celular.">
+  <meta property="og:image" content="marca/archivos/elka-perfil.svg">
+  <link rel="icon" href="marca/archivos/elka-icono.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    /* ====== DATOS DE ELKA: llénenlos aquí ======
+       Lo que esté vacío no se muestra (y los precios vacíos dicen "Pregúntanos"). */
+    var ELKA = {
+      whatsapp: '',   // con indicativo, sin + ni espacios. Ej: '573001234567'
+      correo: '',     // Ej: 'hola@elka.co'
+      instagram: '',  // sin @. Ej: 'elka.co'
+      github: '',     // dirección del repositorio con el código libre
+      precios: { libre: '$0', mantenimiento: '', acompanamiento: '' }, // Ej: 'Desde $30.000 al mes'
+      mensaje: 'Hola Elka, quiero saber más de la app para mi negocio.'
+    };
+  </script>
+  <style>
+    :root {
+      --arena: #FBF6EF; --papel: #FFFFFF; --tinta: #1E2A28; --suave: #5C6662; --linea: #E7E1D8;
+      --verde: #1F5E4A; --verde-osc: #174838; --verde-claro: #E3EFE9; --coral: #E9785A; --coral-txt: #B4482D; --coral-claro: #FCE9E2;
+      --sol: #F2B544; --sol-claro: #FDF3DC;
+      --titulos: 'Bricolage Grotesque', 'Segoe UI', sans-serif;
+      --texto: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --arena: #121917; --papel: #1A2421; --tinta: #EDE8E0; --suave: #A9B3AE; --linea: #2C3834;
+        --verde: #6FBF9F; --verde-osc: #8FD3B7; --verde-claro: #1E3029; --coral: #F09A80; --coral-txt: #F3A98F; --coral-claro: #3A2620;
+        --sol: #F2B544; --sol-claro: #3A3020;
+        color-scheme: dark;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--arena); color: var(--tinta); font: 17px/1.6 var(--texto); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    img, svg { display: block; max-width: 100%; }
+    a { color: inherit; }
+    h1, h2, h3 { font-family: var(--titulos); line-height: 1.08; margin: 0; letter-spacing: -0.01em; }
+    h2 { font-size: clamp(1.9rem, 4.2vw, 2.8rem); }
+    h3 { font-size: 1.2rem; }
+    p { margin: 0; }
+    .envoltura { width: min(1120px, 100% - 32px); margin-inline: auto; }
+    .seccion { padding: clamp(64px, 9vw, 112px) 0; }
+    .antetitulo { font-weight: 700; font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; color: var(--coral-txt); margin-bottom: 12px; }
+    .intro { max-width: 640px; margin-bottom: 40px; }
+    .intro p { margin-top: 14px; color: var(--suave); font-size: 1.08rem; }
+
+    /* Botones */
+    .boton { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 24px; border-radius: 999px; font-weight: 700; text-decoration: none; transition: transform .15s ease, background .15s ease; }
+    .boton:hover { transform: translateY(-1px); }
+    .boton:focus-visible { outline: 3px solid var(--sol); outline-offset: 3px; }
+    .boton.lleno { background: #1F5E4A; color: #fff; }
+    .boton.lleno:hover { background: #174838; }
+    .boton.borde { border: 2px solid var(--linea); color: var(--tinta); }
+    .boton.borde:hover { border-color: var(--verde); }
+    .boton svg { width: 20px; height: 20px; }
+
+    /* Cabecera */
+    .cabecera { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--arena) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid transparent; }
+    .cabecera.con-borde { border-bottom-color: var(--linea); }
+    .cabecera .envoltura { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 68px; }
+    .cabecera nav { display: flex; gap: 26px; font-weight: 600; font-size: .95rem; }
+    .cabecera nav a { text-decoration: none; color: var(--suave); }
+    .cabecera nav a:hover { color: var(--tinta); }
+    .logo-elka { height: 34px; width: auto; }
+    .logo-elka .palabra { stroke: var(--tinta); }
+    .logo-elka .tallo { stroke: var(--verde); }
+    .logo-elka .hoja-a { fill: var(--verde); }
+    .logo-elka .hoja-b { fill: var(--coral); }
+    @media (max-width: 860px) { .cabecera nav { display: none; } }
+
+    /* Portada */
+    .portada { padding: clamp(40px, 7vw, 88px) 0 clamp(56px, 8vw, 96px); }
+    .portada .envoltura { display: grid; grid-template-columns: 1.1fr .9fr; gap: 56px; align-items: center; }
+    .portada h1 { font-size: clamp(2.6rem, 6.4vw, 4.6rem); font-weight: 800; }
+    .portada h1 em { font-style: normal; color: var(--verde); }
+    .portada .bajada { margin-top: 22px; font-size: 1.2rem; color: var(--suave); max-width: 540px; }
+    .portada .acciones { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+    .portada .nota { margin-top: 18px; font-size: .92rem; color: var(--suave); display: flex; align-items: center; gap: 8px; }
+    .portada .nota::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--verde); }
+    @media (max-width: 900px) { .portada .envoltura { grid-template-columns: 1fr; } }
+
+    /* Celular de muestra */
+    .celular-zona { position: relative; display: grid; place-items: center; }
+    .celular-zona::before { content: ''; position: absolute; width: 88%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 30% 30%, var(--coral-claro), var(--verde-claro) 70%); }
+    .celular { position: relative; width: min(320px, 100%); border-radius: 40px; padding: 12px; background: #1E2A28; box-shadow: 0 30px 60px -20px rgba(30, 42, 40, .45); }
+    .pantalla { border-radius: 30px; background: #FBF6EF; color: #1E2A28; padding: 22px 16px 18px; display: grid; gap: 12px; }
+    .pantalla .barra { display: flex; justify-content: space-between; align-items: baseline; }
+    .pantalla .barra b { font-family: var(--titulos); font-size: 1.15rem; }
+    .pantalla .barra span { font-size: .75rem; color: #5C6662; }
+    .tarjeta-eq { background: #1F5E4A; color: #fff; border-radius: 20px; padding: 16px; }
+    .tarjeta-eq small { display: block; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+    .tarjeta-eq strong { display: block; font-family: var(--titulos); font-size: 1.7rem; margin: 2px 0 10px; }
+    .progreso { height: 10px; border-radius: 99px; background: rgba(255, 255, 255, .2); overflow: hidden; }
+    .progreso i { display: block; height: 100%; width: 72%; border-radius: 99px; background: #F2B544; }
+    .tarjeta-eq p { font-size: .8rem; margin-top: 8px; opacity: .92; }
+    .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .mini div { background: #fff; border-radius: 16px; padding: 12px; border: 1px solid #E7E1D8; }
+    .mini small { display: block; font-size: .7rem; color: #5C6662; }
+    .mini b { font-family: var(--titulos); font-size: 1.15rem; }
+    .pedido-fila { background: #fff; border: 1px solid #E7E1D8; border-radius: 16px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; font-size: .82rem; }
+    .pedido-fila b { display: block; font-size: .86rem; }
+    .chip { font-size: .7rem; font-weight: 700; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+    .chip.listo { background: #E3EFE9; color: #174838; }
+    .chip.camino { background: #FCE9E2; color: #B4482D; }
+    .ejemplo { position: absolute; z-index: 2; top: 10px; right: 6%; background: var(--sol); color: #1E2A28; font-weight: 700; font-size: .78rem; padding: 6px 12px; border-radius: 99px; transform: rotate(4deg); }
+
+    /* ¿Te pasa esto? */
+    .dolores { background: var(--papel); }
+    .lista-dolores { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .dolor { border: 1.5px dashed var(--linea); border-radius: 20px; padding: 22px; font-size: 1.05rem; }
+    .dolor::before { content: '“'; display: block; font-family: var(--titulos); font-size: 2.6rem; line-height: .7; color: var(--coral); margin-bottom: 6px; }
+    .remate { margin-top: 28px; font-family: var(--titulos); font-size: clamp(1.3rem, 2.6vw, 1.7rem); color: var(--verde); }
+
+    /* Funciones */
+    .funciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+    .funcion { background: var(--papel); border-radius: 24px; padding: 26px; border: 1px solid var(--linea); }
+    .funcion .ico { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--verde-claro); color: var(--verde); margin-bottom: 16px; }
+    .funcion:nth-child(3n+2) .ico { background: var(--coral-claro); color: var(--coral-txt); }
+    .funcion:nth-child(3n) .ico { background: var(--sol-claro); color: #8A6400; }
+    @media (prefers-color-scheme: dark) { .funcion:nth-child(3n) .ico { color: var(--sol); } }
+    .funcion .ico svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .funcion p { margin-top: 8px; color: var(--suave); }
+
+    /* Punto de equilibrio */
+    .equilibrio { background: #1F5E4A; color: #fff; border-radius: 36px; padding: clamp(32px, 6vw, 64px); display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+    .equilibrio .antetitulo { color: #F3A189; }
+    .equilibrio p { margin-top: 16px; color: rgba(255, 255, 255, .86); font-size: 1.08rem; }
+    .cuenta { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .16); border-radius: 24px; padding: 24px; display: grid; gap: 12px; }
+    .cuenta div { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255, 255, 255, .2); }
+    .cuenta div:last-child { border: 0; padding: 0; }
+    .cuenta .total { font-family: var(--titulos); font-size: 1.4rem; color: #F2B544; }
+    .cuenta small { color: rgba(255, 255, 255, .7); }
+    @media (max-width: 860px) { .equilibrio { grid-template-columns: 1fr; } }
+
+    /* Para quién */
+    .giros { display: flex; flex-wrap: wrap; gap: 12px; }
+    .giro { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 999px; background: var(--papel); border: 1px solid var(--linea); font-weight: 600; }
+    .giro span { font-size: 1.3rem; }
+
+    /* Cómo funciona */
+    .pasos { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; counter-reset: paso; }
+    .paso { position: relative; padding: 26px; border-radius: 24px; background: var(--papel); border: 1px solid var(--linea); }
+    .paso::before { counter-increment: paso; content: counter(paso); display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--coral); color: #1E2A28; font-family: var(--titulos); font-weight: 800; margin-bottom: 16px; }
+    .paso p { margin-top: 8px; color: var(--suave); }
+    .paso .quien { display: inline-block; margin-top: 12px; font-size: .82rem; font-weight: 700; color: var(--verde); }
+
+    /* Quiénes somos */
+    .somos { display: grid; grid-template-columns: .9fr 1.1fr; gap: 48px; align-items: start; }
+    .somos .historia p { margin-top: 16px; color: var(--suave); font-size: 1.08rem; }
+    .somos .historia p strong { color: var(--tinta); }
+    .personas { display: grid; gap: 16px; }
+    .persona { display: flex; gap: 18px; align-items: flex-start; background: var(--papel); border-radius: 24px; padding: 22px; border: 1px solid var(--linea); }
+    .avatar { flex: none; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-family: var(--titulos); font-weight: 800; font-size: 1.4rem; color: #fff; background: #1F5E4A; }
+    .persona:nth-child(2) .avatar { background: #E9785A; color: #1E2A28; }
+    .persona .rol { color: var(--coral-txt); font-weight: 700; font-size: .9rem; }
+    .persona p { margin-top: 6px; color: var(--suave); }
+    @media (max-width: 860px) { .somos { grid-template-columns: 1fr; } }
+
+    /* Planes */
+    .planes { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; align-items: stretch; }
+    .plan { position: relative; display: flex; flex-direction: column; background: var(--papel); border-radius: 28px; padding: 30px 26px; border: 1px solid var(--linea); }
+    .plan.destacado { border: 2px solid var(--verde); box-shadow: 0 20px 40px -24px rgba(31, 94, 74, .5); }
+    .plan .sello { position: absolute; top: -13px; left: 26px; background: var(--sol); color: #1E2A28; font-size: .78rem; font-weight: 700; padding: 4px 12px; border-radius: 99px; }
+    .plan .precio { font-family: var(--titulos); font-size: 1.9rem; font-weight: 800; margin: 12px 0 4px; }
+    .plan .para { color: var(--suave); }
+    .plan ul { list-style: none; padding: 0; margin: 20px 0 26px; display: grid; gap: 10px; flex: 1; }
+    .plan li { display: flex; gap: 10px; }
+    .plan li::before { content: ''; flex: none; width: 20px; height: 20px; margin-top: 3px; border-radius: 50%; background: var(--verde-claro) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M6 10.5l2.5 2.5L14 7.5' fill='none' stroke='%231F5E4A' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100% no-repeat; }
+    .plan .boton { justify-content: center; }
+
+    /* Aliados */
+    .aliados { background: var(--coral-claro); border-radius: 36px; padding: clamp(32px, 6vw, 56px); display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; }
+    .aliados div { max-width: 640px; }
+    .aliados p { margin-top: 12px; color: var(--suave); font-size: 1.05rem; }
+
+    /* Preguntas */
+    .preguntas { max-width: 800px; display: grid; gap: 12px; }
+    details { background: var(--papel); border: 1px solid var(--linea); border-radius: 18px; padding: 0 22px; }
+    summary { cursor: pointer; list-style: none; padding: 18px 0; font-weight: 700; font-size: 1.05rem; display: flex; justify-content: space-between; gap: 16px; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '+'; font-family: var(--titulos); font-size: 1.5rem; line-height: 1; color: var(--verde); }
+    details[open] summary::after { content: '−'; }
+    summary:focus-visible { outline: 3px solid var(--sol); outline-offset: 4px; border-radius: 6px; }
+    details p { padding-bottom: 18px; color: var(--suave); }
+
+    /* Contacto y pie */
+    .contacto { text-align: center; }
+    .contacto h2 { max-width: 760px; margin-inline: auto; }
+    .contacto p { margin: 16px auto 0; max-width: 560px; color: var(--suave); font-size: 1.08rem; }
+    .contacto .acciones { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 30px; }
+    .pie { background: #1F5E4A; color: rgba(255, 255, 255, .85); padding: 48px 0 calc(32px + env(safe-area-inset-bottom)); }
+    .pie .envoltura { display: flex; flex-wrap: wrap; gap: 28px; justify-content: space-between; align-items: flex-start; }
+    .pie img { height: 40px; width: auto; }
+    .pie .lema { margin-top: 12px; font-family: var(--titulos); font-size: 1.1rem; color: #fff; }
+    .pie nav { display: grid; gap: 8px; font-size: .95rem; }
+    .pie a { color: #fff; }
+    .pie .legal { width: 100%; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, .16); font-size: .85rem; color: rgba(255, 255, 255, .7); }
+    [hidden] { display: none !important; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .boton { transition: none; } }
+  </style>
+</head>
+<body>
+
+  <header class="cabecera" id="cabecera">
+    <div class="envoltura">
+      <a href="#" aria-label="Elka, inicio">
+        <svg class="logo-elka" viewBox="0 0 194 64" aria-hidden="true">
+          <path class="tallo" d="M16 58.5Q32 52.5 48 58.5M32 56C32 46.5 29.8 40.5 31.4 33.5C32.6 28.3 34.4 25.2 34.9 23.6" fill="none" stroke-width="5" stroke-linecap="round"/>
+          <path class="hoja-a" d="M31 40.5C22 46.5 8.5 41.5 5 25C18 21.5 29 27.5 31 40.5Z"/>
+          <path class="hoja-b" d="M35 22.5C33.5 9.5 44.5 1.5 60 2.5C60.5 16.5 50 26 35 22.5Z"/>
+          <g class="palabra" transform="translate(72 6)" fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3.5 35H31.5A14 14 0 1 0 27.4 44.9"/><path d="M45 4V50"/><path d="M58 4V50M74 20L58.5 37M65 30L75 50"/><circle cx="101" cy="35" r="14"/><path d="M115 21V50"/>
+          </g>
+        </svg>
+      </a>
+      <nav aria-label="Secciones">
+        <a href="#app">La app</a>
+        <a href="#como">Cómo funciona</a>
+        <a href="#somos">Quiénes somos</a>
+        <a href="#planes">Planes</a>
+        <a href="#preguntas">Preguntas</a>
+      </nav>
+      <a class="boton lleno" href="#contacto" data-whatsapp>Escríbenos</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="portada">
+      <div class="envoltura">
+        <div>
+          <p class="antetitulo">Para emprendedoras que toman pedidos</p>
+          <h1>Ordenamos tu negocio, <em>acompañamos tu crecimiento.</em></h1>
+          <p class="bajada">Una app gratis para tomar pedidos, prepararlos, entregarlos y saber cuánto ganas de verdad. Nosotros te la instalamos, la mantenemos al día y te acompañamos con tus números.</p>
+          <div class="acciones">
+            <a class="boton lleno" href="#contacto" data-whatsapp>
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1112 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 01-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001.1 2.8 11.9 11.9 0 004.6 4c1.7.7 2.4.8 3.2.7.5-.1 1.5-.6 1.7-1.2s.2-1.1.2-1.2-.2-.2-.4-.3z"/></svg>
+              Escríbenos por WhatsApp
+            </a>
+            <a class="boton borde" href="#como">Mira cómo funciona</a>
+          </div>
+          <p class="nota">Sin computador: todo desde tu celular.</p>
+        </div>
+        <div class="celular-zona" aria-label="Ejemplo de la app en un celular" role="img">
+          <span class="ejemplo" aria-hidden="true">Ejemplo</span>
+          <div class="celular" aria-hidden="true">
+            <div class="pantalla">
+              <div class="barra"><b>Dulce Tentación</b><span>Noviembre</span></div>
+              <div class="tarjeta-eq">
+                <small>Punto de equilibrio</small>
+                <strong>$2.400.000</strong>
+                <div class="progreso"><i></i></div>
+                <p>Llevas $1.730.000. Te faltan $670.000 para cubrir todos tus gastos del mes.</p>
+              </div>
+              <div class="mini">
+                <div><small>Ganancia del mes</small><b>$865.000</b></div>
+                <div><small>Te deben</small><b>$120.000</b></div>
+              </div>
+              <div class="pedido-fila"><div><b>Torta de chocolate</b>Para Laura · 3:00 p. m.</div><span class="chip listo">Lista</span></div>
+              <div class="pedido-fila"><div><b>Cupcakes x12</b>Para Andrés · 5:30 p. m.</div><span class="chip camino">En camino</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion dolores">
+      <div class="envoltura">
+        <div class="intro">
+          <p class="antetitulo">¿Te suena?</p>
+          <h2>Trabajas duro, pero los números no cuadran.</h2>
+        </div>
+        <div class="lista-dolores">
+          <p class="dolor">Vendo bastante, pero a fin de mes no sé a dónde se fue la plata.</p>
+          <p class="dolor">Los pedidos me llegan por WhatsApp, Instagram y llamadas, y alguno se me pierde.</p>
+          <p class="dolor">La plata de la casa y la del negocio están revueltas.</p>
+          <p class="dolor">No sé cuánto tengo que vender para que el negocio se pague solo.</p>
+        </div>
+        <p class="remate">No es falta de ganas: es falta de orden. Y eso tiene arreglo.</p>
+      </div>
+    </section>
+
+    <section class="seccion" id="app">
+      <div class="envoltura">
+        <div class="intro">
+          <p class="antetitulo">La app</p>
+          <h2>Todo tu negocio en un solo lugar.</h2>
+          <p>Desde que llega el pedido hasta que sabes cuánto te ganaste. Funciona aunque trabajes sola o tengas equipo.</p>
+        </div>
+        <div class="funciones">
+          <article class="funcion">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M12 12v6M9 15h6"/></svg></div>
+            <h3>Pedidos en orden</h3>
+            <p>Anota cada pedido con lo que pidieron, para cuándo y cuánto cuesta. La app arma los turnos según la hora de entrega.</p>
+          </article>
+          <article class="funcion">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg></div>
+            <h3>Preparación y entrega</h3>
+            <p>Cada quien ve lo que le toca. Al entregar se toma una foto que queda guardada como prueba.</p>
+          </article>
+          <article class="funcion">
+            <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18M16 14.5h2"/></svg></div>
+            <h3>Abonos y saldos</h3>
+            <p>Registra cuánto te abonaron y cuánto falta. Recuérdale al cliente con un mensaje de WhatsApp ya escrito.</p>
+          </article>
+          <article class="funcion">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+            <h3>Gastos y ganancia</h3>
+            <p>Anota lo que gastas en materiales, arriendo o servicios. La app te dice cuánto ganaste de verdad este mes.</p>
+          </article>
+          <article class="funcion">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M12 3v18" opacity=".35"/><path d="M5 17l7-10 7 10"/></svg></div>
+            <h3>Punto de equilibrio</h3>
+            <p>Cuánto necesitas vender para cubrir tus gastos, y cuánto para pagarte un sueldo justo.</p>
+          </article>
+          <article class="funcion">
+            <div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg></div>
+            <h3>Cierre de caja</h3>
+            <p>Al final del día cuenta el efectivo y la app te dice si cuadra con lo que se vendió.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion" style="padding-top:0">
+      <div class="envoltura">
+        <div class="equilibrio">
+          <div>
+            <p class="antetitulo">Tu punto de equilibrio</p>
+            <h2>La cifra más importante de tu negocio, en palabras sencillas.</h2>
+            <p>Es lo que necesitas vender al mes para no perder plata. Por debajo, el negocio te cuesta; por encima, empieza la ganancia. La app lo calcula sola con tus ventas y tus gastos.</p>
+          </div>
+          <div class="cuenta" aria-label="Ejemplo de cálculo">
+            <div><span>Gastos fijos del mes<br><small>Arriendo, servicios, internet</small></span><b>$1.200.000</b></div>
+            <div><span>De cada venta te queda<br><small>Después de pagar los materiales</small></span><b>50 %</b></div>
+            <div><span>Necesitas vender al mes</span><span class="total">$2.400.000</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion" style="padding-top:0">
+      <div class="envoltura">
+        <div class="intro">
+          <p class="antetitulo">Para quién es</p>
+          <h2>Para negocios que toman pedidos y los entregan.</h2>
+          <p>Viene lista para tu tipo de negocio, con sus propias palabras: tortas, ramos, gafas o almuerzos.</p>
+        </div>
+        <div class="giros">
+          <span class="giro"><span aria-hidden="true">💐</span>Floristerías</span>
+          <span class="giro"><span aria-hidden="true">🎂</span>Pastelerías y repostería</span>
+          <span class="giro"><span aria-hidden="true">👓</span>Ópticas</span>
+          <span class="giro"><span aria-hidden="true">🍲</span>Restaurantes y almuerzos</span>
+          <span class="giro"><span aria-hidden="true">🎁</span>Detalles y desayunos sorpresa</span>
+          <span class="giro"><span aria-hidden="true">✨</span>Y cualquier negocio de pedidos</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion dolores" id="como">
+      <div class="envoltura">
+        <div class="intro">
+          <p class="antetitulo">Cómo funciona</p>
+          <h2>Tú te encargas de vender. Nosotros, de lo demás.</h2>
+        </div>
+        <div class="pasos">
+          <article class="paso">
+            <h3>Conversamos</h3>
+            <p>Conocemos tu negocio: qué vendes, cómo te llegan los pedidos y qué quieres lograr.</p>
+            <span class="quien">Con Keila</span>
+          </article>
+          <article class="paso">
+            <h3>Instalamos</h3>
+            <p>Preparamos tu app con el nombre, los colores y las palabras de tu negocio.</p>
+            <span class="quien">Con Elvis</span>
+          </article>
+          <article class="paso">
+            <h3>La activas en tu celular</h3>
+            <p>Te llega un enlace. En 3 pasos pones tu logo, tu clave y tus gastos. Sin papeleo.</p>
+            <span class="quien">Tú, en 5 minutos</span>
+          </article>
+          <article class="paso">
+            <h3>Te acompañamos</h3>
+            <p>Resolvemos tus dudas por WhatsApp, mejoramos la app y revisamos tus números contigo.</p>
+            <span class="quien">Los dos, siempre</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion" id="somos">
+      <div class="envoltura somos">
+        <div class="historia">
+          <p class="antetitulo">Quiénes somos</p>
+          <h2>Tecnología que se entiende, acompañamiento que se siente.</h2>
+          <p><strong>Elka</strong> nace de unir nuestros nombres, <strong>El</strong>vis y <strong>Ka</strong>, y lo que mejor sabemos hacer.</p>
+          <p>Vimos a muchas emprendedoras trabajar sin descanso y aun así no saber si su negocio les daba o les quitaba. Por eso creamos una herramienta gratis y la acompañamos con lo más importante: alguien que te explique tus números y camine contigo.</p>
+        </div>
+        <div class="personas">
+          <article class="persona">
+            <div class="avatar" aria-hidden="true">EP</div>
+            <div>
+              <h3>Elvis Pareja de la Hoz</h3>
+              <span class="rol">Ingeniero de sistemas</span>
+              <p>Hace que la tecnología sea fácil: instala tu app, la cuida y la mejora para que tú no tengas que preocuparte por nada técnico.</p>
+            </div>
+          </article>
+          <article class="persona">
+            <div class="avatar" aria-hidden="true">KC</div>
+            <div>
+              <h3>Keila Cabarcas Vega</h3>
+              <span class="rol">Trabajadora social</span>
+              <p>Acompaña a cada emprendedora a entender sus números, separar la plata de la casa y la del negocio, y crecer con orden.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion dolores" id="planes">
+      <div class="envoltura">
+        <div class="intro">
+          <p class="antetitulo">Planes</p>
+          <h2>La app es gratis. El acompañamiento es lo que hace la diferencia.</h2>
+        </div>
+        <div class="planes">
+          <article class="plan">
+            <h3>Libre</h3>
+            <p class="precio" data-precio="libre"></p>
+            <p class="para">Para quien sabe instalarla por su cuenta.</p>
+            <ul>
+              <li>Todas las funciones de la app</li>
+              <li>Código abierto y guía de instalación</li>
+              <li>Sin soporte</li>
+            </ul>
+            <a class="boton borde" href="#contacto" data-github>Ver el código</a>
+          </article>
+          <article class="plan">
+            <h3>Mantenimiento</h3>
+            <p class="precio" data-precio="mantenimiento"></p>
+            <p class="para">Tu app funcionando, sin que te preocupes.</p>
+            <ul>
+              <li>Instalación con tu nombre y tus colores</li>
+              <li>Mejoras y actualizaciones incluidas</li>
+              <li>Copia de seguridad todos los días</li>
+              <li>Ayuda por WhatsApp</li>
+            </ul>
+            <a class="boton borde" href="#contacto" data-whatsapp data-mensaje="Hola Elka, me interesa el plan Mantenimiento.">Lo quiero</a>
+          </article>
+          <article class="plan destacado">
+            <span class="sello">El más completo</span>
+            <h3>Acompañamiento</h3>
+            <p class="precio" data-precio="acompanamiento"></p>
+            <p class="para">Para crecer con tus números claros.</p>
+            <ul>
+              <li>Todo lo del plan Mantenimiento</li>
+              <li>Una sesión al mes para revisar tus números</li>
+              <li>Metas de ventas y de sueldo</li>
+              <li>Talleres de finanzas para tu negocio</li>
+            </ul>
+            <a class="boton lleno" href="#contacto" data-whatsapp data-mensaje="Hola Elka, me interesa el plan Acompañamiento.">Lo quiero</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion">
+      <div class="envoltura">
+        <div class="aliados">
+          <div>
+            <p class="antetitulo">Programas y aliados</p>
+            <h2>¿Trabajas con emprendedoras?</h2>
+            <p>Fundaciones, alcaldías, cámaras de comercio y programas de emprendimiento: llevamos la app y el acompañamiento a grupos completos.</p>
+          </div>
+          <a class="boton lleno" href="#contacto" data-whatsapp data-mensaje="Hola Elka, trabajo con un programa de emprendimiento y quiero conocer su propuesta para grupos.">Hablemos</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion" id="preguntas" style="padding-top:0">
+      <div class="envoltura">
+        <div class="intro">
+          <p class="antetitulo">Preguntas frecuentes</p>
+          <h2>Lo que más nos preguntan.</h2>
+        </div>
+        <div class="preguntas">
+          <details>
+            <summary>¿De verdad la app es gratis?</summary>
+            <p>Sí. El código es libre y no cobramos por usarlo. Lo que se paga es el servicio: instalarla, mantenerla al día y acompañarte con tus números.</p>
+          </details>
+          <details>
+            <summary>¿Necesito computador?</summary>
+            <p>No. Funciona en el celular y la puedes poner en tu pantalla de inicio como cualquier app.</p>
+          </details>
+          <details>
+            <summary>¿Funciona sin internet?</summary>
+            <p>No. Necesita conexión, porque tu información se guarda en Google.</p>
+          </details>
+          <details>
+            <summary>¿Y si tengo empleados?</summary>
+            <p>Cada persona entra con su usuario y ve solo lo que le toca: quien vende, quien prepara y quien entrega. Tus costos, tus ganancias y tu sueldo solo los ves tú.</p>
+          </details>
+          <details>
+            <summary>Mis precios cambian según la temporada. ¿Sirve?</summary>
+            <p>Sí. La app no te amarra a una lista de precios: cada pedido lleva su propio valor, como en la vida real.</p>
+          </details>
+          <details>
+            <summary>¿Dónde queda mi información?</summary>
+            <p>En una hoja de cálculo de Google, solo para tu negocio. La tratamos según la Ley 1581 de 2012 de protección de datos personales. Si un día dejas el servicio, te entregamos esa hoja con toda tu información.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion dolores contacto" id="contacto">
+      <div class="envoltura">
+        <p class="antetitulo">Empecemos</p>
+        <h2>Tu negocio merece orden. Tú mereces ver tu esfuerzo crecer.</h2>
+        <p>Escríbenos y conversamos sin compromiso sobre tu negocio.</p>
+        <div class="acciones">
+          <a class="boton lleno" href="#" data-whatsapp hidden>Escríbenos por WhatsApp</a>
+          <a class="boton borde" href="#" data-correo hidden>Escríbenos un correo</a>
+          <a class="boton borde" href="#" data-instagram hidden>Síguenos en Instagram</a>
+        </div>
+        <p id="sin-contacto" hidden>Muy pronto publicaremos nuestros datos de contacto.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="envoltura">
+      <div>
+        <img src="marca/archivos/elka-logo-blanco.svg" alt="Elka">
+        <p class="lema">Ordenamos tu negocio, acompañamos tu crecimiento.</p>
+      </div>
+      <nav aria-label="Enlaces">
+        <a href="#app">La app</a>
+        <a href="#planes">Planes</a>
+        <a href="marca/">Manual de marca</a>
+        <a href="#" data-github hidden>Código libre</a>
+      </nav>
+      <p class="legal">© <span id="anio">2026</span> Elka · Elvis Pareja de la Hoz y Keila Cabarcas Vega · Tratamos tus datos según la Ley 1581 de 2012.</p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var E = window.ELKA || {};
+      var hay = { whatsapp: /^\d{8,15}$/.test(E.whatsapp || ''), correo: /@/.test(E.correo || ''), instagram: !!E.instagram, github: /^https?:\/\//.test(E.github || '') };
+      function todos(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+      todos('[data-whatsapp]').forEach(function (a) {
+        if (!hay.whatsapp) { if (a.closest('#contacto')) a.hidden = true; return; } // sin número: los botones bajan a Contacto
+        a.href = 'https://wa.me/' + E.whatsapp + '?text=' + encodeURIComponent(a.getAttribute('data-mensaje') || E.mensaje || '');
+        a.target = '_blank'; a.rel = 'noopener';
+        a.hidden = false;
+      });
+      todos('[data-correo]').forEach(function (a) { if (hay.correo) { a.href = 'mailto:' + E.correo; a.hidden = false; } });
+      todos('[data-instagram]').forEach(function (a) { if (hay.instagram) { a.href = 'https://instagram.com/' + E.instagram.replace(/^@/, ''); a.target = '_blank'; a.rel = 'noopener'; a.hidden = false; } });
+      todos('[data-github]').forEach(function (a) {
+        if (hay.github) { a.href = E.github; a.target = '_blank'; a.rel = 'noopener'; a.hidden = false; }
+        else if (a.closest('.plan')) a.hidden = true;
+      });
+      document.getElementById('sin-contacto').hidden = hay.whatsapp || hay.correo || hay.instagram;
+      todos('[data-precio]').forEach(function (p) {
+        var v = (E.precios || {})[p.getAttribute('data-precio')];
+        p.textContent = v || 'Pregúntanos';
+      });
+      document.getElementById('anio').textContent = new Date().getFullYear();
+      var cab = document.getElementById('cabecera');
+      function borde() { cab.classList.toggle('con-borde', window.scrollY > 8); }
+      window.addEventListener('scroll', borde, { passive: true });
+      borde();
+    })();
+  </script>
+</body>
+</html>

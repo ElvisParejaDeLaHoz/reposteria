@@ -1,0 +1,284 @@
+/* JsBase: Constantes, utilidades, conexión con el servidor, entrada y salida, pestañas.
+   Se mete dentro del mismo (function () { ... })() de Index.html: comparte sus variables. */
+      var TOKEN_KEY = 'pa_token';
+      var MIN_DESC = 20; // se cambia desde la hoja Configuración ("Mínimo de letras en la descripción")
+      var DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+      var MODULOS = {
+        pedido: { rol: 'Vendedora', nombre: 'Tomar pedido', cab: ['Nuevo pedido', 'Registra el pedido con todos sus detalles. Se prepara por turnos, según la hora de entrega.'] },
+        seguimiento: { rol: 'Vendedora', nombre: 'Mis pedidos', cab: ['Seguimiento de pedidos', 'Mira en qué paso va cada pedido y quién lo tiene.'] },
+        decorador: { rol: 'Decorador', nombre: 'Arreglos', cab: ['Arreglos por hacer', 'Sigue el orden de los turnos. Marca cuándo empiezas y cuándo terminas cada pedido.'] },
+        entregador: { rol: 'Entregador', nombre: 'Entregas', cab: ['Entregas', 'Toma una foto al entregar. Queda guardada como evidencia.'] },
+        admin: { rol: 'Administrador', nombre: 'Ventas', cab: ['Ventas y equipo', 'Qué se vendió, por dónde llegó y cómo trabajó el equipo.'] },
+        finanzas: { rol: 'Administrador', nombre: 'Finanzas', cab: ['Finanzas de mi negocio', 'Cuánto entra, cuánto sale, cuánto ganas y cuánto te falta para cubrir los gastos.'] },
+        // Ajustes no va en la barra de pestañas (ya son muchas en el celular): se abre desde la cabecera.
+        ajustes: { rol: 'Administrador', nombre: 'Ajustes', cab: ['Ajustes', 'Los datos de tu negocio y las personas que trabajan contigo.'] }
+      };
+      var ORDEN_MODULOS = ['finanzas', 'admin', 'pedido', 'seguimiento', 'decorador', 'entregador'];
+
+      /* Iconos de la barra inferior (fijos, sin datos de usuarios). */
+      var ICONOS = {
+        pedido: '<svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M12 12v6M9 15h6"/></svg>',
+        seguimiento: '<svg viewBox="0 0 24 24" focusable="false"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.3 1.3L7 5M3.5 12l1.3 1.3L7 11M3.5 18l1.3 1.3L7 17"/></svg>',
+        decorador: '<svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="6.2" r="2.6"/><circle cx="17.6" cy="10.2" r="2.6"/><circle cx="15.5" cy="16.8" r="2.6"/><circle cx="8.5" cy="16.8" r="2.6"/><circle cx="6.4" cy="10.2" r="2.6"/></svg>',
+        entregador: '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>',
+        admin: '<svg viewBox="0 0 24 24" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+        finanzas: '<svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><path d="M16 14.5h2"/></svg>'
+      };
+
+      var S = { token: '', user: null, tablero: null, tableroJSON: '', modulo: '', cargando: false, timer: null, v: '' };
+      var cacheDia = {};
+      var guardando = false;
+      var edicion = null;
+      var f = document.getElementById('form');
+
+      /* ---------- Utilidades ---------- */
+      function $(s, r) { return (r || document).querySelector(s); }
+      function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+      function pad(n) { return String(n).padStart(2, '0'); }
+      function el(tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text != null) n.textContent = text;
+        return n;
+      }
+      function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+      /** Marca un elemento con texto escrito por personas: los nombres de la marca no se cambian ahí. */
+      function libre(n) { n.setAttribute('data-dato', ''); return n; }
+      function hoyISO() {
+        var d = new Date();
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      }
+      function sumarDias(iso, n) {
+        var p = iso.split('-').map(Number);
+        var d = new Date(p[0], p[1] - 1, p[2] + n);
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      }
+      function ahoraHHMM() { var d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+      function fmtHora(h) {
+        if (!h) return '';
+        var p = h.split(':').map(Number), H = p[0], M = p[1];
+        return ((H % 12) || 12) + ':' + pad(M) + ' ' + (H >= 12 ? 'p. m.' : 'a. m.');
+      }
+      function fmtFecha(iso) {
+        var p = iso.split('-').map(Number);
+        var d = new Date(p[0], p[1] - 1, p[2]);
+        return DIAS[d.getDay()] + ' ' + d.getDate() + ' de ' + MESES[d.getMonth()];
+      }
+      function fmtDinero(n) { return '$' + Number(n).toLocaleString('es-CO'); }
+      function digitos(s) { return Number(String(s || '').replace(/\D/g, '')) || 0; }
+      function sinPuntosDobles(t) { return String(t).replace(/\.\.+/g, '.'); }
+      function plural(n, uno, varios) { return n + ' ' + (n === 1 ? uno : varios); }
+      function valor(form, name) {
+        var r = form.querySelector('input[name="' + name + '"]:checked');
+        return r ? r.value : '';
+      }
+      function enCola(p) { return p.estado === 'Pendiente' || p.estado === 'En preparación'; }
+
+      var toastTimer;
+      function toast(texto, malo) {
+        var t = $('#toast');
+        t.textContent = texto;
+        t.classList.toggle('mal', !!malo);
+        t.classList.add('ver');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { t.classList.remove('ver'); }, malo ? 6500 : 4500);
+      }
+
+      /* ---------- Servidor ---------- */
+      function leerToken() { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; } }
+      function guardarToken(t) { try { localStorage.setItem(TOKEN_KEY, t); } catch (e) { /* sin almacenamiento */ } }
+      function borrarToken() { try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* sin almacenamiento */ } }
+
+      function llamar(fn, args) {
+        return new Promise(function (resolve, reject) {
+          if (!window.google || !google.script || !google.script.run) { reject(new Error('sin-servidor')); return; }
+          var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+          r[fn].apply(r, args || []);
+        });
+      }
+      function api(fn, args) {
+        return llamar(fn, [S.token].concat(args || [])).then(function (r) {
+          if (r && r.sesion === false) {
+            cerrarSesion('Tu sesión terminó. Entra de nuevo.');
+            throw new Error('sesion');
+          }
+          if (r && r.v) S.v = r.v;
+          return r;
+        });
+      }
+
+      /* ---------- Entrada y salida ---------- */
+      function mostrarLogin(mensaje) {
+        $('#cargando').hidden = true;
+        $('#app').hidden = true;
+        $('#login').hidden = false;
+        var e = $('#login-error');
+        e.hidden = !mensaje;
+        e.textContent = mensaje || '';
+        $('#l-clave').value = '';
+        $('#l-entrar').disabled = false;
+        $('#l-entrar').textContent = 'Entrar';
+        ($('#l-usuario').value ? $('#l-clave') : $('#l-usuario')).focus();
+      }
+
+      function cerrarSesion(mensaje) {
+        clearInterval(S.timer);
+        borrarToken();
+        S.token = ''; S.user = null; S.tablero = null; S.tableroJSON = ''; S.modulo = '';
+        cacheDia = {};
+        ALR.previo = null; ALR.nuevas = {}; S.v = '';
+        document.title = (S.config && S.config.nombre) || CFG_DEF.nombre;
+        ADM.datos = null; ADM.json = ''; ADM.abiertos = {}; ADM.seq++; ADM.q = ''; ADM.est = '';
+        $('#adm-q').value = ''; $('#adm-est').value = '';
+        ['#seg-lista', '#deco-lista', '#ent-lista', '#dia-lista', '#tabs', '#adm-resumen', '#adm-lista'].forEach(function (id) { $(id).textContent = ''; });
+        $('#foto-img').removeAttribute('src');
+        $('#ent-previa').removeAttribute('src');
+        E.foto = null;
+        reiniciarFormulario(true);
+        ['#dlg-entrega', '#dlg-cancelar', '#dlg-abono', '#dlg-mov', '#dlg-foto', '#dlg-usuario'].forEach(function (id) { if ($(id).open) $(id).close(); });
+        FIN.datos = null; FIN.json = ''; FIN.seq++; FIN.mes = ''; FIN.vista = 'resumen'; FIN.cierre = null; FIN.fijosBorrador = null;
+        $('#fin-contenido').textContent = '';
+        $('input[name="fin-vista"][value="resumen"]').checked = true;
+        reiniciarAjustes();
+        $('#bienvenida').hidden = true;
+        salirEdicion();
+        document.body.classList.remove('con-barra', 'teclado');
+        $('#app').classList.remove('con-barra');
+        mostrarLogin(mensaje);
+      }
+
+      $('#form-login').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var u = $('#l-usuario').value, c = $('#l-clave').value;
+        var b = $('#l-entrar');
+        b.disabled = true;
+        b.textContent = 'Entrando…';
+        llamar('iniciarSesion', [u, c]).then(function (r) {
+          if (!r || !r.ok) { mostrarLogin((r && r.error) || 'No se pudo entrar.'); return; }
+          S.token = r.token;
+          guardarToken(r.token);
+          entrar(r);
+        }).catch(function () {
+          mostrarLogin('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+        });
+      });
+
+      $('#salir').addEventListener('click', function () { cerrarSesion(''); });
+      $('#ajustes').addEventListener('click', function () { abrirModulo('ajustes'); window.scrollTo({ top: 0 }); });
+
+      function entrar(info) {
+        S.user = info;
+        if (info.config) aplicarConfig(info.config, true);
+        $('#login').hidden = true;
+        $('#cargando').hidden = true;
+        $('#app').hidden = false;
+        $('#s-nombre').textContent = info.nombre;
+        var rolesTxt = info.roles.map(function (r) { return r.toLowerCase(); });
+        $('#s-rol').textContent = rolesTxt.length > 1
+          ? rolesTxt.slice(0, -1).join(', ') + ' y ' + rolesTxt[rolesTxt.length - 1]
+          : rolesTxt[0];
+
+        var mods = ORDEN_MODULOS.filter(function (k) { return info.roles.indexOf(MODULOS[k].rol) >= 0; });
+        var tabs = $('#tabs');
+        tabs.textContent = '';
+        tabs.hidden = mods.length < 2;
+        document.body.classList.toggle('con-barra', mods.length >= 2);
+        $('#app').classList.toggle('con-barra', mods.length >= 2);
+        mods.forEach(function (k) {
+          var b = el('button', 'tab');
+          b.type = 'button';
+          b.id = 'tab-' + k;
+          b.dataset.mod = k;
+          b.setAttribute('role', 'tab');
+          b.setAttribute('aria-controls', 'mod-' + k);
+          var ico = el('span', 'tab-icono');
+          ico.setAttribute('aria-hidden', 'true');
+          ico.innerHTML = ICONOS[k];
+          b.appendChild(ico);
+          b.appendChild(el('span', 'tab-texto', MODULOS[k].nombre));
+          var c = el('span', 'tab-cuenta');
+          c.id = 'cuenta-' + k;
+          c.hidden = true;
+          b.appendChild(c);
+          var pt = el('span', 'tab-punto');
+          pt.id = 'punto-' + k;
+          pt.hidden = true;
+          b.appendChild(pt);
+          b.addEventListener('click', function () { abrirModulo(k); window.scrollTo({ top: 0 }); });
+          tabs.appendChild(b);
+        });
+        S.modulos = mods;
+        $('#ajustes').hidden = info.roles.indexOf('Administrador') < 0;
+
+        reiniciarFormulario(true);
+        ALR.previo = null; ALR.nuevas = {}; S.v = '';
+        abrirModulo(mods[0]);
+        llamar('getCambio', []).then(function (r) { if (r && r.ok && !S.v) S.v = r.v; }).catch(function () { /* se sincroniza en el próximo sondeo */ });
+        if (usaTablero()) refrescarTablero(true);
+        clearInterval(S.timer);
+        S.timer = setInterval(sondeo, 30000);
+      }
+
+      function abrirModulo(k) {
+        S.modulo = k;
+        limpiarNuevas(k);
+        Object.keys(MODULOS).forEach(function (m) { var p = $('#mod-' + m); if (p) p.hidden = (m !== k); });
+        $('#ajustes').setAttribute('aria-current', k === 'ajustes' ? 'page' : 'false');
+        $$('.tab').forEach(function (b) {
+          var on = b.dataset.mod === k;
+          b.setAttribute('aria-selected', String(on));
+          b.tabIndex = on ? 0 : -1;
+        });
+        pintarCabecera(k);
+        if (k === 'pedido') cargarDia(f.fecha.value);
+        if (k === 'admin') cargarAdmin(!!ADM.datos);
+        if (k === 'finanzas') cargarFinanzas(!!FIN.datos);
+        if (k === 'ajustes') cargarAjustes(); else soltarPruebaColores();
+        renderActivo();
+      }
+
+      function pintarCabecera(k) {
+        var cab = (k === 'pedido' && edicion)
+          ? ['Editar pedido', 'Los cambios quedan registrados. El decorador y el entregador verán que el pedido fue modificado.']
+          : MODULOS[k].cab;
+        $('#titulo-vista').textContent = cab[0];
+        $('#sub-vista').textContent = cab[1];
+      }
+
+      $('#tabs').addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        var i = S.modulos.indexOf(S.modulo);
+        var j = (i + (e.key === 'ArrowRight' ? 1 : -1) + S.modulos.length) % S.modulos.length;
+        abrirModulo(S.modulos[j]);
+        $('#tab-' + S.modulos[j]).focus();
+      });
+
+      function usaTablero() {
+        return !!S.user && S.user.roles.some(function (r) { return r === 'Vendedora' || r === 'Decorador' || r === 'Entregador'; });
+      }
+
+      /* Cada 30 s se pregunta solo por una marca de "algo cambió" (muy liviano); si cambió, se recarga lo que se está viendo. */
+      function sondeo() {
+        if (!S.token) return;
+        if (document.hidden && !ALR.activa) return;
+        llamar('getCambio', []).then(function (r) {
+          if (!r || !r.ok || r.v === S.v) return;
+          S.v = r.v;
+          if (usaTablero()) refrescarTablero(false, true);
+          if (S.modulo === 'admin') cargarAdmin(true);
+          if (S.modulo === 'finanzas' && FIN.vista !== 'fijos' && FIN.vista !== 'caja') cargarFinanzas(true);
+          if (S.modulo === 'pedido' && f.fecha.value) cargarDia(f.fecha.value, true);
+        }).catch(function () { /* sin conexión: se intenta en el próximo ciclo */ });
+      }
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && S.token) { limpiarNuevas(S.modulo); sondeo(); }
+        actualizarTitulo();
+      });
+
+      /* En el celular, la barra inferior se oculta mientras se escribe para no tapar los campos. */
+      function esCampo(n) { return n && /^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName) && n.type !== 'radio' && n.type !== 'checkbox' && n.type !== 'file'; }
+      document.addEventListener('focusin', function (e) { if (esCampo(e.target)) document.body.classList.add('teclado'); });
+      document.addEventListener('focusout', function (e) { if (esCampo(e.target)) document.body.classList.remove('teclado'); });
+

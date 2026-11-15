@@ -1,0 +1,703 @@
+/* JsEquipo: Tablero compartido y vistas de quien prepara, quien vende (seguimiento) y quien entrega; entrega con foto, cancelar, pagos y fotos.
+   Se mete dentro del mismo (function () { ... })() de Index.html: comparte sus variables. */
+      /* ---------- Tablero compartido ---------- */
+      function refrescarTablero(forzar, desdeSondeo) {
+        if (S.cargando) return Promise.resolve();
+        S.cargando = true;
+        $$('.btn-sec[id$="-actualizar"]').forEach(function (b) { b.disabled = true; });
+        return api('getTablero').then(function (r) {
+          if (r && r.ok) aplicarTablero(r.tablero, forzar, desdeSondeo);
+          else if (r && r.error) toast(r.error, true);
+        }).catch(function (e) {
+          if (e && e.message !== 'sesion' && forzar) toast('No se pudo actualizar la lista. Revisa tu conexión.', true);
+        }).then(function () {
+          S.cargando = false;
+          $$('.btn-sec[id$="-actualizar"]').forEach(function (b) { b.disabled = false; });
+        });
+      }
+
+      function aplicarTablero(t, forzar, desdeSondeo) {
+        var j = JSON.stringify(t);
+        if (desdeSondeo) detectarNovedades(t); else fijarBase(t);
+        if (!forzar && j === S.tableroJSON) return;
+        S.tableroJSON = j;
+        S.tablero = t;
+        actualizarCuentas();
+        renderActivo();
+      }
+
+      function actualizarCuentas() {
+        var t = S.tablero;
+        if (!t) return;
+        var deco = t.pedidos.filter(enCola).length;
+        var ent = t.pedidos.filter(function (p) { return p.entrega === 'Domicilio' && (p.estado === 'Listo' || p.estado === 'En camino'); }).length;
+        [['decorador', deco], ['entregador', ent]].forEach(function (par) {
+          var c = $('#cuenta-' + par[0]);
+          if (!c) return;
+          c.textContent = par[1];
+          c.hidden = par[1] === 0;
+        });
+      }
+
+      ['#deco-actualizar', '#seg-actualizar', '#ent-actualizar'].forEach(function (s) {
+        $(s).addEventListener('click', function () { refrescarTablero(true); });
+      });
+
+      function renderActivo() {
+        if (S.modulo === 'seguimiento') renderSeguimiento();
+        else if (S.modulo === 'decorador') renderDecorador();
+        else if (S.modulo === 'entregador') renderEntregador();
+        else if (S.modulo === 'pedido') renderDia();
+        else if (S.modulo === 'admin') renderAdmin();
+        // Finanzas no depende del tablero: se pinta solo cuando llegan sus datos, así no se borra lo que se está escribiendo.
+      }
+
+      /* ---------- Piezas comunes de las listas ---------- */
+      function chip(estado) {
+        var clase = { 'Pendiente': 'pendiente', 'En preparación': 'preparacion', 'Listo': 'listo', 'En camino': 'camino', 'Entregado': 'entregado', 'Cancelado': 'cancelado' }[estado] || 'pendiente';
+        return el('span', 'chip ' + clase, estado);
+      }
+
+      function vacio(titulo, sub) {
+        var v = el('div', 'deco-vacio');
+        v.appendChild(el('strong', null, titulo));
+        if (sub) v.appendChild(el('p', null, sub));
+        return v;
+      }
+
+      function atrasado(p) {
+        if (!S.tablero || !enCola(p)) return false;
+        return p.fecha < S.tablero.hoy || (p.fecha === S.tablero.hoy && p.hora < ahoraHHMM());
+      }
+
+      function tituloFecha(iso, soloPendientes) {
+        var hoy = S.tablero.hoy;
+        if (iso === hoy) return 'Hoy, ' + fmtFecha(iso);
+        if (iso === sumarDias(hoy, 1)) return 'Mañana, ' + fmtFecha(iso);
+        if (soloPendientes && iso < hoy) return 'Atrasados, ' + fmtFecha(iso);
+        return cap(fmtFecha(iso));
+      }
+
+      function cmpFecha(a, b) {
+        if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1;
+        if (a.hora !== b.hora) return a.hora < b.hora ? -1 : 1;
+        return 0;
+      }
+
+      /** Dibuja las tarjetas agrupadas por fecha dentro de un contenedor. */
+      function pintarGrupos(cont, lista, tarjeta, pendientes, descendente) {
+        cont.textContent = '';
+        var grupos = [];
+        lista.forEach(function (p) {
+          var g = grupos[grupos.length - 1];
+          if (!g || g.fecha !== p.fecha) { g = { fecha: p.fecha, items: [] }; grupos.push(g); }
+          g.items.push(p);
+        });
+        if (descendente) grupos.reverse();
+        grupos.forEach(function (g) {
+          var hoja = el('div', 'hoja-deco');
+          var h = el('h2', 'fecha-grupo', tituloFecha(g.fecha, pendientes));
+          if (pendientes && g.fecha < S.tablero.hoy) h.classList.add('atrasado');
+          hoja.appendChild(h);
+          var ul = el('ul', 'tareas');
+          g.items.forEach(function (p) { ul.appendChild(tarjeta(p)); });
+          hoja.appendChild(ul);
+          cont.appendChild(hoja);
+        });
+      }
+
+      function pedirTablero(cont) {
+        cont.textContent = '';
+        cont.appendChild(vacio('Cargando pedidos…', ''));
+      }
+
+      function boton(texto, clase, onClick) {
+        var b = el('button', 'tarea-btn' + (clase ? ' ' + clase : ''), texto);
+        b.type = 'button';
+        b.addEventListener('click', function () { onClick(b); });
+        return b;
+      }
+
+      /** Cambia el estado de un pedido y refresca todo con la respuesta del servidor. */
+      function accion(p, nombre, datos, b, textoOk) {
+        var original = b ? b.textContent : '';
+        if (b) { b.disabled = true; b.textContent = 'Guardando…'; }
+        return api('cambiarEstado', [p.id, nombre, datos || {}]).then(function (r) {
+          if (r && r.ok) {
+            aplicarTablero(r.tablero, true);
+            if (textoOk) toast(textoOk);
+            return r;
+          }
+          if (b) { b.disabled = false; b.textContent = original; }
+          toast((r && r.error) || 'No se pudo guardar el cambio.', true);
+          if (r && r.actualizar) refrescarTablero(true);
+          return r;
+        }).catch(function (e) {
+          if (b) { b.disabled = false; b.textContent = original; }
+          if (e && e.message !== 'sesion') toast('No se pudo guardar el cambio. Revisa tu conexión e inténtalo de nuevo.', true);
+        });
+      }
+
+      function marcaModificado(p) {
+        if (!p.editadoMs) return null;
+        var d = new Date(p.editadoMs), h = new Date();
+        var cuando = d.toDateString() === h.toDateString()
+          ? 'a las ' + fmtHora(pad(d.getHours()) + ':' + pad(d.getMinutes()))
+          : 'el ' + d.getDate() + ' de ' + MESES[d.getMonth()];
+        return el('span', 'mod', 'Modificado ' + cuando);
+      }
+
+      function soloDigitos(s) { return String(s || '').replace(/\D/g, ''); }
+
+      function lineaContacto(p) {
+        if (!p.telefono) return null;
+        var c = el('p', 'tarea-dir contacto', 'Teléfono ' + p.telefono + ' ');
+        var d = soloDigitos(p.telefono);
+        var aTel = el('a', null, 'Llamar');
+        aTel.href = 'tel:' + (p.telefono.charAt(0) === '+' ? '+' : '') + d;
+        c.appendChild(aTel);
+        if (/^3\d{9}$/.test(d)) {
+          var aWa = el('a', null, 'WhatsApp');
+          aWa.href = 'https://wa.me/57' + d;
+          aWa.target = '_blank';
+          aWa.rel = 'noopener';
+          c.appendChild(aWa);
+        }
+        return c;
+      }
+
+      /** Cuánto se ha pagado y cuánto falta. Los pedidos de antes de llevar abonos no muestran nada. */
+      function lineaPago(p, paraCobrar) {
+        if (!p.controlPago) return null;
+        var l = el('p', 'pago-linea');
+        if (p.saldo > 0) {
+          l.appendChild(el('span', 'debe', (paraCobrar ? 'Cobrar ' : 'Debe ') + fmtDinero(p.saldo)));
+          if (p.abonado > 0) l.appendChild(document.createTextNode(' · abonó ' + fmtDinero(p.abonado) + ' de ' + fmtDinero(p.total)));
+        } else {
+          l.appendChild(el('span', 'ok', 'Pagado completo'));
+        }
+        return l;
+      }
+
+      function lineaPara(p) {
+        var para = el('p', 'tarea-para', 'Para ' + p.para + ' ');
+        para.appendChild(el('span', null, 'pidió ' + p.cliente));
+        return para;
+      }
+
+      function bloqueDedicatoria(p) {
+        if (p.dedicatoria !== 'Sí' || !p.textoDedicatoria) return null;
+        var d = el('p', 'tarea-ded');
+        d.appendChild(el('b', null, 'Dedicatoria para la tarjeta'));
+        d.appendChild(libre(el('span', null, p.textoDedicatoria)));
+        return d;
+      }
+
+      /* ---------- Decorador ---------- */
+      function renderDecorador() {
+        var cont = $('#deco-lista');
+        if (!S.tablero) { pedirTablero(cont); return; }
+        var todos = S.tablero.pedidos;
+        var porHacer = todos.filter(enCola).sort(function (a, b) { return a.orden - b.orden; });
+        var hechos = todos.filter(function (p) { return !enCola(p); }).sort(cmpFecha);
+
+        $('#f-deco-pend').textContent = 'Por hacer (' + porHacer.length + ')';
+        $('#f-deco-hechos').textContent = 'Terminados (' + hechos.length + ')';
+
+        var deHoy = todos.filter(function (p) { return p.fecha === S.tablero.hoy; });
+        var terminadosHoy = deHoy.filter(function (p) { return !enCola(p); }).length;
+        $('#progreso').hidden = deHoy.length === 0;
+        if (deHoy.length) {
+          var pct = Math.round(terminadosHoy * 100 / deHoy.length);
+          $('#progreso-txt').textContent = terminadosHoy === deHoy.length
+            ? 'Hoy terminaste los ' + deHoy.length + ' arreglos.'
+            : 'Hoy llevas ' + terminadosHoy + ' de ' + plural(deHoy.length, 'arreglo', 'arreglos') + '.';
+          $('#progreso-relleno').style.width = pct + '%';
+          $('#progreso-barra').setAttribute('aria-valuenow', String(pct));
+        }
+
+        var verHechos = valor($('#mod-decorador'), 'filtro-deco') === 'hechos';
+        var lista = verHechos ? hechos : porHacer;
+        if (!lista.length) {
+          cont.textContent = '';
+          cont.appendChild(verHechos
+            ? vacio('Todavía no hay arreglos terminados', 'Aquí aparecen los de los últimos 7 días.')
+            : vacio('No tienes arreglos por hacer', 'Cuando se registre un pedido nuevo aparece aquí.'));
+          return;
+        }
+        var primero = porHacer.length ? porHacer[0].id : '';
+        pintarGrupos(cont, lista, function (p) { return tarjetaDecorador(p, p.id === primero); }, !verHechos, false);
+      }
+
+      function tarjetaDecorador(p, esSiguiente) {
+        var cola = enCola(p);
+        var li = el('li', 'tarea' + (esSiguiente ? ' siguiente' : '') + (cola ? '' : ' hecho'));
+        var izq = el('div', 'tarea-izq');
+        if (cola) {
+          var t = el('div', 'turno');
+          t.appendChild(el('small', null, 'Turno'));
+          t.appendChild(el('b', null, String(p.turno)));
+          izq.appendChild(t);
+        }
+        izq.appendChild(el('div', 'tarea-hora', fmtHora(p.hora)));
+        li.appendChild(izq);
+
+        var c = el('div', 'tarea-cuerpo');
+        c.appendChild(lineaPara(p));
+        c.appendChild(libre(el('p', 'tarea-desc', p.descripcion)));
+        var d = bloqueDedicatoria(p);
+        if (d) c.appendChild(d);
+
+        var meta = el('p', 'tarea-meta');
+        meta.appendChild(chip(p.estado));
+        if (esSiguiente) meta.appendChild(el('span', null, 'Sigue este'));
+        if (p.estado === 'En preparación' && p.decorador) meta.appendChild(el('span', null, 'Lo arma ' + p.decorador));
+        meta.appendChild(el('span', null, p.entrega === 'Domicilio' ? 'Sale a domicilio' : 'Lo recogen en el local'));
+        var modD = cola ? marcaModificado(p) : null;
+        if (modD) meta.appendChild(modD);
+        if (atrasado(p)) meta.appendChild(el('span', 'tarde', 'Atrasado'));
+        c.appendChild(meta);
+
+        var ac = el('div', 'acciones');
+        if (p.estado === 'Pendiente') {
+          ac.appendChild(boton('Empezar', '', function (b) { accion(p, 'empezar', null, b, 'Empezaste este arreglo.'); }));
+          ac.appendChild(boton('Ya está listo', 'deshacer', function (b) { accion(p, 'terminar', null, b, 'Arreglo marcado como listo.'); }));
+        } else if (p.estado === 'En preparación') {
+          ac.appendChild(boton('Marcar listo', '', function (b) { accion(p, 'terminar', null, b, 'Arreglo marcado como listo.'); }));
+          ac.appendChild(boton('Soltar', 'deshacer', function (b) { accion(p, 'soltar', null, b, 'Volvió a la cola de pendientes.'); }));
+        } else if (p.estado === 'Listo') {
+          ac.appendChild(boton('Deshacer', 'deshacer', function (b) { accion(p, 'deshacerListo', null, b, 'Vuelve a estar en preparación.'); }));
+        }
+        if (ac.childNodes.length) c.appendChild(ac);
+        li.appendChild(c);
+        return li;
+      }
+
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="filtro-deco"]'), function (r) {
+        r.addEventListener('change', renderDecorador);
+      });
+
+      /* ---------- Seguimiento (vendedora) ---------- */
+      function rastro(p) { return sinPuntosDobles(rastroBruto(p)); }
+      function rastroBruto(p) {
+        if (p.estado === 'Pendiente') return 'Esperando turno ' + p.turno + ' de ' + p.turnosDia + ' para ese día.';
+        if (p.estado === 'En preparación') return 'Lo está armando ' + (p.decorador || 'el decorador') + (p.inicioPrep ? ' desde las ' + fmtHora(p.inicioPrep) : '') + '.';
+        if (p.estado === 'Listo') {
+          return 'Listo' + (p.listoEl ? ' desde las ' + fmtHora(p.listoEl) : '') +
+            (p.entrega === 'Local' ? '. Esperando al cliente en el local.' : '. Esperando al entregador.');
+        }
+        if (p.estado === 'En camino') return 'En camino con ' + (p.entregador || 'el entregador') + (p.salioEl ? ' desde las ' + fmtHora(p.salioEl) : '') + '.';
+        if (p.estado === 'Entregado') {
+          return 'Entregado' + (p.entregadoEl ? ' a las ' + fmtHora(p.entregadoEl) : '') +
+            (p.entregador ? ' por ' + p.entregador : '') + (p.recibio ? '. Recibió ' + p.recibio : '') + '.';
+        }
+        return '';
+      }
+
+      function renderSeguimiento() {
+        var cont = $('#seg-lista');
+        if (!S.tablero) { pedirTablero(cont); return; }
+        var mod = $('#mod-seguimiento');
+        var soloMios = valor(mod, 'seg-quien') === 'mios';
+        var base = S.tablero.pedidos.filter(function (p) { return !soloMios || p.vendedora === S.user.nombre; });
+        var curso = base.filter(function (p) { return p.estado !== 'Entregado'; }).sort(cmpFecha);
+        var entregados = base.filter(function (p) { return p.estado === 'Entregado'; }).sort(cmpFecha);
+        $('#f-seg-curso').textContent = 'En curso (' + curso.length + ')';
+        $('#f-seg-ent').textContent = 'Entregados (' + entregados.length + ')';
+
+        var verEntregados = valor(mod, 'seg-est') === 'entregados';
+        var lista = verEntregados ? entregados : curso;
+        if (!lista.length) {
+          cont.textContent = '';
+          cont.appendChild(verEntregados
+            ? vacio('Todavía no hay pedidos entregados', 'Aquí aparecen los de los últimos 7 días.')
+            : vacio('No hay pedidos en curso', soloMios ? 'Los que tomes aparecen aquí hasta que se entreguen.' : 'Cuando se registre un pedido aparece aquí.'));
+          return;
+        }
+        pintarGrupos(cont, lista, tarjetaSeguimiento, !verEntregados, verEntregados);
+      }
+
+      function tarjetaSeguimiento(p) {
+        var li = el('li', 'tarea' + (p.estado === 'Entregado' ? ' hecho' : ''));
+        var izq = el('div', 'tarea-izq');
+        izq.appendChild(el('div', 'tarea-hora', fmtHora(p.hora)));
+        li.appendChild(izq);
+
+        var c = el('div', 'tarea-cuerpo');
+        c.appendChild(lineaPara(p));
+        c.appendChild(libre(el('p', 'tarea-desc', p.descripcion)));
+        var d = bloqueDedicatoria(p);
+        if (d) c.appendChild(d);
+
+        var meta = el('p', 'tarea-meta');
+        meta.appendChild(chip(p.estado));
+        meta.appendChild(el('span', null, p.entrega === 'Domicilio' ? 'Domicilio' : 'Entrega en el local'));
+        meta.appendChild(el('span', null, 'Total ' + fmtDinero(p.total)));
+        var modS = p.estado !== 'Entregado' ? marcaModificado(p) : null;
+        if (modS) meta.appendChild(modS);
+        if (atrasado(p)) meta.appendChild(el('span', 'tarde', 'Atrasado'));
+        c.appendChild(meta);
+        var pagoS = lineaPago(p, false);
+        if (pagoS) c.appendChild(pagoS);
+
+        var contS = lineaContacto(p);
+        if (contS) c.appendChild(contS);
+        c.appendChild(el('p', 'tarea-rastro', rastro(p)));
+        c.appendChild(el('p', 'tarea-rastro', 'Lo vendió ' + (p.vendedora || 'sin registrar') + (p.medio ? ' por ' + p.medio : '') + '.'));
+
+        var ac = el('div', 'acciones');
+        if (p.entrega === 'Local' && p.estado === 'Listo') {
+          ac.appendChild(boton('Entregar en el local', '', function () { abrirEntrega(p, false); }));
+        }
+        if (p.controlPago && p.saldo > 0) {
+          ac.appendChild(boton('Registrar pago', 'deshacer', function () { abrirAbono(p); }));
+        }
+        if (p.estado === 'Pendiente') {
+          ac.appendChild(boton('Editar', 'deshacer', function () { empezarEdicion(p); }));
+          ac.appendChild(boton('Cancelar pedido', 'peligro', function () { abrirCancelar(p); }));
+        } else if (p.estado !== 'Entregado' && p.estado !== 'Cancelado') {
+          c.appendChild(el('p', 'tarea-rastro', 'Ya está en curso: no se puede editar ni cancelar. Si hay un problema, habla con la administradora.'));
+        }
+        if (p.conEvidencia) {
+          ac.appendChild(boton('Ver foto de entrega', 'deshacer', function () { verEvidencia(p); }));
+        }
+        if (ac.childNodes.length) c.appendChild(ac);
+        li.appendChild(c);
+        return li;
+      }
+
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="seg-quien"], input[name="seg-est"]'), function (r) {
+        r.addEventListener('change', renderSeguimiento);
+      });
+
+      /* ---------- Entregador ---------- */
+      function renderEntregador() {
+        var cont = $('#ent-lista');
+        if (!S.tablero) { pedirTablero(cont); return; }
+        var dom = S.tablero.pedidos.filter(function (p) { return p.entrega === 'Domicilio'; });
+        var paraEntregar = dom.filter(function (p) { return p.estado === 'Listo' || p.estado === 'En camino'; }).sort(cmpFecha);
+        var armando = dom.filter(enCola).sort(cmpFecha);
+        var hechas = dom.filter(function (p) { return p.estado === 'Entregado'; }).sort(cmpFecha);
+        $('#f-ent-listos').textContent = 'Para entregar (' + paraEntregar.length + ')';
+        $('#f-ent-armando').textContent = 'Los están armando (' + armando.length + ')';
+        $('#f-ent-hechas').textContent = 'Entregados (' + hechas.length + ')';
+
+        var vista = valor($('#mod-entregador'), 'filtro-ent');
+        var lista = vista === 'armando' ? armando : (vista === 'hechas' ? hechas : paraEntregar);
+        if (!lista.length) {
+          cont.textContent = '';
+          cont.appendChild(vista === 'armando'
+            ? vacio('No hay domicilios en preparación', 'Cuando la decoradora los termine pasan a Para entregar.')
+            : (vista === 'hechas'
+              ? vacio('Todavía no hay entregas hechas', 'Aquí aparecen las de los últimos 7 días.')
+              : vacio('No tienes entregas pendientes', 'Los domicilios listos aparecen aquí.')));
+          return;
+        }
+        pintarGrupos(cont, lista, tarjetaEntrega, vista !== 'hechas', vista === 'hechas');
+      }
+
+      function tarjetaEntrega(p) {
+        var li = el('li', 'tarea' + (p.estado === 'Entregado' ? ' hecho' : ''));
+        var izq = el('div', 'tarea-izq');
+        izq.appendChild(el('div', 'tarea-hora', fmtHora(p.hora)));
+        li.appendChild(izq);
+
+        var c = el('div', 'tarea-cuerpo');
+        c.appendChild(lineaPara(p));
+        var dir = libre(el('p', 'tarea-dir', p.direccion));
+        var mapa = el('a', null, 'Abrir en el mapa');
+        mapa.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.direccion);
+        mapa.target = '_blank';
+        mapa.rel = 'noopener';
+        dir.appendChild(mapa);
+        c.appendChild(dir);
+        var contE = lineaContacto(p);
+        if (contE) c.appendChild(contE);
+        c.appendChild(libre(el('p', 'tarea-desc', p.descripcion)));
+
+        var meta = el('p', 'tarea-meta');
+        meta.appendChild(chip(p.estado));
+        var modE = p.estado !== 'Entregado' ? marcaModificado(p) : null;
+        if (modE) meta.appendChild(modE);
+        meta.appendChild(el('span', null, 'Pago: ' + p.pago + '. Total ' + fmtDinero(p.total)));
+        if (atrasado(p) || (p.estado !== 'Entregado' && p.fecha < S.tablero.hoy) ||
+            (p.estado !== 'Entregado' && p.fecha === S.tablero.hoy && p.hora < ahoraHHMM())) {
+          meta.appendChild(el('span', 'tarde', 'Atrasado'));
+        }
+        c.appendChild(meta);
+        var pagoE = lineaPago(p, p.estado !== 'Entregado');
+        if (pagoE) c.appendChild(pagoE);
+        if (p.estado === 'En camino' || p.estado === 'Entregado') c.appendChild(el('p', 'tarea-rastro', rastro(p)));
+
+        var ac = el('div', 'acciones');
+        if (p.estado === 'Listo') {
+          ac.appendChild(boton('Salir a entregar', '', function (b) { accion(p, 'salir', null, b, 'Saliste con este pedido.'); }));
+        } else if (p.estado === 'En camino') {
+          ac.appendChild(boton('Entregar', '', function () { abrirEntrega(p, true); }));
+        }
+        if (p.conEvidencia) {
+          ac.appendChild(boton('Ver foto de entrega', 'deshacer', function () { verEvidencia(p); }));
+        }
+        if (ac.childNodes.length) c.appendChild(ac);
+        li.appendChild(c);
+        return li;
+      }
+
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="filtro-ent"]'), function (r) {
+        r.addEventListener('change', renderEntregador);
+      });
+
+      /* ---------- Entrega con foto ---------- */
+      var E = { pedido: null, foto: null, obligatoria: true, enviando: false };
+      var dlgEntrega = $('#dlg-entrega');
+
+      function errorEntrega(msg) {
+        var e = $('#ent-error');
+        e.style.display = msg ? 'block' : 'none';
+        e.textContent = msg || '';
+      }
+
+      function abrirEntrega(p, obligatoria) {
+        E.pedido = p;
+        E.foto = null;
+        E.obligatoria = obligatoria;
+        E.enviando = false;
+        $('#ent-titulo').textContent = p.entrega === 'Domicilio' ? 'Entregar a ' + p.para : 'Entrega en el local para ' + p.para;
+        $('#ent-foto').value = '';
+        $('#ent-recibio').value = '';
+        $('#ent-previa').hidden = true;
+        $('#ent-previa').removeAttribute('src');
+        $('#ent-zona-txt').hidden = false;
+        $('#ent-zona-txt').textContent = obligatoria ? 'Tocar para tomar la foto' : 'Tocar para tomar una foto (opcional)';
+        $('#ent-ayuda').textContent = obligatoria
+          ? 'La foto es obligatoria. Debe verse el arreglo en el lugar de entrega.'
+          : 'La foto es opcional en las entregas del local.';
+        errorEntrega('');
+        var debe = p.controlPago && p.saldo > 0;
+        $('#ent-cobro').hidden = !debe;
+        if (debe) {
+          $('#ent-cobro-txt').textContent = 'Falta cobrar ' + fmtDinero(p.saldo);
+          $('#ent-cobrado').checked = true;
+          llenarMetodos($('#ent-metodo'), p.pago);
+          $('#ent-metodo').hidden = false;
+        }
+        $('#ent-confirmar').disabled = obligatoria;
+        $('#ent-confirmar').textContent = 'Confirmar entrega';
+        dlgEntrega.showModal();
+      }
+
+      /** Llena un selector con los métodos de pago del negocio ("Ya pagado" no aplica a un cobro). */
+      function llenarMetodos(sel, preferido) {
+        var lista = ((S.config && S.config.pagos) || ['Efectivo']).filter(function (x) { return x !== 'Ya pagado'; });
+        sel.textContent = '';
+        lista.forEach(function (x) { var o = el('option', null, x); o.value = x; sel.appendChild(o); });
+        sel.value = lista.indexOf(preferido) >= 0 ? preferido : lista[0];
+      }
+      $('#ent-cobrado').addEventListener('change', function () { $('#ent-metodo').hidden = !this.checked; });
+
+      /** Reduce la foto a 1280 px y la convierte a JPEG para que suba rápido. */
+      function prepararFoto(file) {
+        return new Promise(function (resolve, reject) {
+          var url = URL.createObjectURL(file);
+          var img = new Image();
+          img.onload = function () {
+            var max = 1280;
+            var k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+            var cv = document.createElement('canvas');
+            cv.width = Math.round(img.naturalWidth * k);
+            cv.height = Math.round(img.naturalHeight * k);
+            cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+            var data = cv.toDataURL('image/jpeg', 0.72);
+            URL.revokeObjectURL(url);
+            resolve({ mime: 'image/jpeg', base64: data.split(',')[1], vista: data });
+          };
+          img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('foto')); };
+          img.src = url;
+        });
+      }
+
+      $('#ent-foto').addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        errorEntrega('');
+        prepararFoto(file).then(function (foto) {
+          E.foto = foto;
+          var img = $('#ent-previa');
+          img.src = foto.vista;
+          img.hidden = false;
+          $('#ent-zona-txt').hidden = true;
+          $('#ent-confirmar').disabled = false;
+        }).catch(function () {
+          E.foto = null;
+          errorEntrega('No se pudo leer la foto. Toma otra.');
+          $('#ent-confirmar').disabled = E.obligatoria;
+        });
+      });
+
+      $('#ent-cancelar').addEventListener('click', function () { dlgEntrega.close(); });
+
+      $('#form-entrega').addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (E.enviando || !E.pedido) return;
+        if (E.obligatoria && !E.foto) { errorEntrega('Toma la foto de la entrega.'); return; }
+        E.enviando = true;
+        var b = $('#ent-confirmar');
+        b.disabled = true;
+        b.textContent = E.foto ? 'Subiendo foto…' : 'Guardando…';
+        var datos = { recibio: $('#ent-recibio').value.trim() };
+        if (E.foto) datos.foto = { mime: E.foto.mime, base64: E.foto.base64 };
+        if (!$('#ent-cobro').hidden && $('#ent-cobrado').checked) {
+          datos.cobro = E.pedido.saldo;
+          datos.metodoCobro = $('#ent-metodo').value;
+        }
+        api('cambiarEstado', [E.pedido.id, 'entregar', datos]).then(function (r) {
+          E.enviando = false;
+          if (r && r.ok) {
+            dlgEntrega.close();
+            aplicarTablero(r.tablero, true);
+            toast('Entrega registrada.');
+            return;
+          }
+          b.disabled = false;
+          b.textContent = 'Confirmar entrega';
+          errorEntrega((r && r.error) || 'No se pudo registrar la entrega.');
+          if (r && r.actualizar) refrescarTablero(true);
+        }).catch(function (err) {
+          E.enviando = false;
+          b.disabled = false;
+          b.textContent = 'Confirmar entrega';
+          if (err && err.message !== 'sesion') errorEntrega('No se pudo subir la foto. Revisa tu conexión e inténtalo de nuevo.');
+        });
+      });
+
+      /* ---------- Cancelar pedido ---------- */
+      var C = { pedido: null, enviando: false };
+      var dlgCancelar = $('#dlg-cancelar');
+      function errorCancelar(msg) {
+        var e = $('#can-error');
+        e.style.display = msg ? 'block' : 'none';
+        e.textContent = msg || '';
+      }
+      function abrirCancelar(p) {
+        C.pedido = p;
+        C.enviando = false;
+        $('#can-titulo').textContent = 'Cancelar el pedido de ' + p.cliente + ' para ' + p.para;
+        $('#can-aviso').textContent = p.estado === 'Pendiente'
+          ? 'Todavía no lo han empezado.'
+          : (p.estado === 'En preparación'
+            ? 'Ya lo están armando. Avísale al decorador para que no siga con este arreglo.'
+            : 'El arreglo ya está listo. Se pierde si cancelas el pedido.');
+        $('#can-motivo').value = '';
+        $('#can-confirmar').disabled = false;
+        $('#can-confirmar').textContent = 'Cancelar pedido';
+        errorCancelar('');
+        dlgCancelar.showModal();
+      }
+      $('#can-volver').addEventListener('click', function () { dlgCancelar.close(); });
+      $('#can-motivo').addEventListener('input', function () { errorCancelar(''); });
+      $('#form-cancelar').addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (C.enviando || !C.pedido) return;
+        var motivo = $('#can-motivo').value.trim();
+        if (motivo.length < 3) { errorCancelar('Escribe el motivo de la cancelación.'); return; }
+        C.enviando = true;
+        var b = $('#can-confirmar');
+        b.disabled = true;
+        b.textContent = 'Cancelando…';
+        api('cambiarEstado', [C.pedido.id, 'cancelar', { motivo: motivo }]).then(function (r) {
+          C.enviando = false;
+          if (r && r.ok) {
+            dlgCancelar.close();
+            aplicarTablero(r.tablero, true);
+            if (S.modulo === 'admin') cargarAdmin(false);
+            toast('Pedido cancelado.');
+            return;
+          }
+          b.disabled = false;
+          b.textContent = 'Cancelar pedido';
+          errorCancelar((r && r.error) || 'No se pudo cancelar el pedido.');
+          if (r && r.actualizar) refrescarTablero(true);
+        }).catch(function (err) {
+          C.enviando = false;
+          b.disabled = false;
+          b.textContent = 'Cancelar pedido';
+          if (err && err.message !== 'sesion') errorCancelar('No se pudo cancelar. Revisa tu conexión e inténtalo de nuevo.');
+        });
+      });
+
+      /* ---------- Registrar un pago (abono) de un pedido ---------- */
+      var A = { pedido: null, enviando: false };
+      var dlgAbono = $('#dlg-abono');
+      function errorAbono(msg) {
+        var e = $('#abo-error');
+        e.style.display = msg ? 'block' : 'none';
+        e.textContent = msg || '';
+      }
+      function abrirAbono(p) {
+        A.pedido = p;
+        A.enviando = false;
+        $('#abo-titulo').textContent = 'Pago de ' + p.cliente;
+        $('#abo-aviso').textContent = 'Total ' + fmtDinero(p.total) + ' · ya abonó ' + fmtDinero(p.abonado) + ' · debe ' + fmtDinero(p.saldo) + '.';
+        $('#abo-valor').value = dineroTexto(p.saldo);
+        llenarMetodos($('#abo-metodo'), p.pago);
+        $('#abo-confirmar').disabled = false;
+        $('#abo-confirmar').textContent = 'Guardar pago';
+        errorAbono('');
+        dlgAbono.showModal();
+      }
+      $('#abo-valor').addEventListener('input', function () { formatearDinero(this); errorAbono(''); });
+      $('#abo-volver').addEventListener('click', function () { dlgAbono.close(); });
+      $('#form-abono').addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (A.enviando || !A.pedido) return;
+        var v = digitos($('#abo-valor').value);
+        if (v <= 0) { errorAbono('Escribe cuánto pagó.'); return; }
+        if (v > A.pedido.saldo) { errorAbono('Es más de lo que debe (' + fmtDinero(A.pedido.saldo) + ').'); return; }
+        A.enviando = true;
+        var b = $('#abo-confirmar');
+        b.disabled = true;
+        b.textContent = 'Guardando…';
+        api('cambiarEstado', [A.pedido.id, 'abonar', { valor: v, metodo: $('#abo-metodo').value }]).then(function (r) {
+          A.enviando = false;
+          if (r && r.ok) {
+            dlgAbono.close();
+            if (r.tablero) aplicarTablero(r.tablero, true);
+            if (S.modulo === 'admin') cargarAdmin(true);
+            if (S.modulo === 'finanzas') cargarFinanzas(true);
+            toast(v >= A.pedido.saldo ? 'Pago registrado. El pedido quedó pagado.' : 'Abono registrado.');
+            return;
+          }
+          b.disabled = false;
+          b.textContent = 'Guardar pago';
+          errorAbono((r && r.error) || 'No se pudo guardar el pago.');
+        }).catch(function (err) {
+          A.enviando = false;
+          b.disabled = false;
+          b.textContent = 'Guardar pago';
+          if (err && err.message !== 'sesion') errorAbono('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.');
+        });
+      });
+
+      /* ---------- Ver foto de entrega ---------- */
+      var dlgFoto = $('#dlg-foto');
+      function verEvidencia(p) {
+        $('#foto-titulo').textContent = 'Entrega a ' + p.para;
+        $('#foto-estado').hidden = false;
+        $('#foto-estado').textContent = 'Cargando foto…';
+        $('#foto-img').hidden = true;
+        $('#foto-img').removeAttribute('src');
+        dlgFoto.showModal();
+        api('getEvidencia', [p.id]).then(function (r) {
+          if (r && r.ok) {
+            $('#foto-img').src = r.dataUrl;
+            $('#foto-img').hidden = false;
+            $('#foto-estado').hidden = true;
+          } else {
+            $('#foto-estado').textContent = (r && r.error) || 'No se pudo abrir la foto.';
+          }
+        }).catch(function (e) {
+          if (e && e.message !== 'sesion') $('#foto-estado').textContent = 'No se pudo abrir la foto. Revisa tu conexión.';
+        });
+      }
+      $('#foto-cerrar').addEventListener('click', function () { dlgFoto.close(); });
+

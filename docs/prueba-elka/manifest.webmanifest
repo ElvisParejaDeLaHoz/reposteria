@@ -1,0 +1,17 @@
+{
+  "name": "Pastelería de Prueba",
+  "short_name": "Pastelería d",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#F4EEF2",
+  "theme_color": "#A0522D",
+  "icons": [
+    {
+      "src": "icono.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

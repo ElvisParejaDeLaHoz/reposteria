@@ -1,0 +1,76 @@
+{
+  "_ayuda": "Valores de arranque por tipo de negocio. Las claves de 'config' son las etiquetas exactas de la hoja Configuración. Solo se usan al crear la hoja; después manda lo que escriba la dueña.",
+  "floristeria": {
+    "nombre": "Floristería",
+    "color": "#C0245E",
+    "config": {
+      "Categorías de gastos": "Flores, Follaje, Bases y floreros, Empaques y cintas, Transporte, Publicidad, Arriendo, Servicios públicos, Internet y teléfono, Nómina, Otros"
+    }
+  },
+  "pasteleria": {
+    "nombre": "Pastelería",
+    "color": "#A0522D",
+    "config": {
+      "Nombre del producto": "torta (f)",
+      "Nombre de la dedicatoria": "mensaje",
+      "Rol: quien prepara": "Pastelera (f)",
+      "Ejemplo de descripción": "Ej. Torta de chocolate de 20 porciones, relleno de arequipe, cubierta blanca con flores rosadas y el nombre Sofía.",
+      "Qué incluir en la descripción": "Incluye sabor, porciones, relleno, cubierta, decoración y el motivo de la celebración.",
+      "Categorías de gastos": "Harina y azúcar, Lácteos y huevos, Decoración, Empaques y cajas, Gas y energía, Transporte, Publicidad, Arriendo, Nómina, Otros"
+    }
+  },
+  "optica": {
+    "nombre": "Óptica",
+    "color": "#1F5F8B",
+    "config": {
+      "Nombre del producto": "trabajo",
+      "Nombre de la dedicatoria": "nota",
+      "Rol: quien vende": "Asesora (f)",
+      "Rol: quien prepara": "Laboratorio",
+      "Rol: quien entrega": "Mensajero",
+      "Ejemplo de descripción": "Ej. Montura negra ref. 5228 + lentes progresivos con antirreflejo. OD -1.25 esf. OI -1.50 esf -0.50 cil 90°.",
+      "Qué incluir en la descripción": "Montura, tipo de lente, tratamientos, fórmula de cada ojo y laboratorio al que se envía.",
+      "Medios de venta": "En el local, WhatsApp, Llamada, Instagram, Remitido por médico, Otro",
+      "Métodos de pago": "Efectivo, Transferencia, Nequi, Datáfono, Crédito, Ya pagado",
+      "Categorías de gastos": "Laboratorio, Monturas, Lentes de contacto, Insumos, Publicidad, Arriendo, Servicios públicos, Nómina, Otros"
+    }
+  },
+  "restaurante": {
+    "nombre": "Restaurante",
+    "color": "#B5470F",
+    "config": {
+      "Nombre del producto": "almuerzo",
+      "Nombre de la dedicatoria": "nota",
+      "Rol: quien vende": "Cajera (f)",
+      "Rol: quien prepara": "Cocina (f)",
+      "Rol: quien entrega": "Domiciliario",
+      "Ejemplo de descripción": "Ej. 2 corrientes con pollo (uno sin ensalada) + 2 limonadas",
+      "Qué incluir en la descripción": "Cantidad, plato, bebida y los cambios que pidió el cliente.",
+      "Mínimo de letras en la descripción": "3",
+      "Medios de venta": "WhatsApp, Llamada, En el local, Rappi, Otro",
+      "Categorías de gastos": "Mercado, Carnes, Gas, Desechables, Bebidas, Transporte, Arriendo, Servicios públicos, Nómina, Otros"
+    }
+  },
+  "regalos": {
+    "nombre": "Detalles y desayunos sorpresa",
+    "color": "#8E3A8C",
+    "config": {
+      "Nombre del producto": "detalle",
+      "Rol: quien prepara": "Decoradora (f)",
+      "Ejemplo de descripción": "Ej. Desayuno sorpresa mediano: jugo de naranja, sándwich, fruta picada, globo de corazón y peluche.",
+      "Qué incluir en la descripción": "Qué lleva, tamaño, colores, globos o peluches y la ocasión.",
+      "Categorías de gastos": "Alimentos, Globos y decoración, Peluches y regalos, Cajas y empaques, Transporte, Publicidad, Arriendo, Nómina, Otros"
+    }
+  },
+  "generico": {
+    "nombre": "Negocio de pedidos",
+    "color": "#17382C",
+    "config": {
+      "Nombre del producto": "pedido",
+      "Nombre de la dedicatoria": "nota",
+      "Rol: quien prepara": "Producción (f)",
+      "Ejemplo de descripción": "Ej. Describe con detalle lo que pidió el cliente.",
+      "Qué incluir en la descripción": "Qué lleva, cantidades, tamaños, colores y lo que pidió el cliente."
+    }
+  }
+}

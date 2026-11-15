@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Manual de marca · Elka</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#1F5E4A">
+  <link rel="icon" href="archivos/elka-icono.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --arena: #FBF6EF; --papel: #FFFFFF; --tinta: #1E2A28; --suave: #5C6662; --linea: #E7E1D8;
+      --verde: #1F5E4A; --verde-claro: #E3EFE9; --coral: #E9785A; --coral-txt: #B4482D; --coral-claro: #FCE9E2; --sol: #F2B544;
+      --titulos: 'Bricolage Grotesque', 'Segoe UI', sans-serif;
+      --texto: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--arena); color: var(--tinta); font: 16px/1.6 var(--texto); -webkit-font-smoothing: antialiased; }
+    h1, h2, h3 { font-family: var(--titulos); line-height: 1.1; margin: 0; }
+    h2 { font-size: clamp(1.7rem, 3.6vw, 2.4rem); }
+    h3 { font-size: 1.15rem; }
+    p { margin: 0; }
+    a { color: var(--verde); }
+    img { display: block; max-width: 100%; }
+    .envoltura { width: min(1080px, 100% - 32px); margin-inline: auto; }
+    .portada { background: #1F5E4A; color: #fff; padding: 56px 0 64px; }
+    .portada img { height: 56px; width: auto; }
+    .portada h1 { margin-top: 48px; font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 800; }
+    .portada p { margin-top: 12px; font-size: 1.15rem; color: rgba(255, 255, 255, .85); max-width: 620px; }
+    .indice { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 32px; }
+    .indice a { color: #fff; text-decoration: none; border: 1px solid rgba(255, 255, 255, .3); border-radius: 99px; padding: 6px 14px; font-size: .9rem; font-weight: 600; }
+    .indice a:hover { background: rgba(255, 255, 255, .12); }
+    section { padding: 64px 0; border-bottom: 1px solid var(--linea); }
+    .num { font-weight: 700; font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; color: var(--coral-txt); margin-bottom: 10px; }
+    .lead { margin-top: 14px; max-width: 700px; color: var(--suave); font-size: 1.06rem; }
+    .rejilla { display: grid; gap: 16px; margin-top: 32px; }
+    .r2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .r3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .r4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .caja { background: var(--papel); border: 1px solid var(--linea); border-radius: 20px; padding: 22px; }
+    .caja p { margin-top: 8px; color: var(--suave); }
+    .valor b { display: block; font-family: var(--titulos); font-size: 1.25rem; color: var(--verde); }
+
+    /* Idea del símbolo */
+    .idea { display: grid; grid-template-columns: 260px 1fr; gap: 40px; align-items: center; margin-top: 32px; }
+    .idea .simbolo { background: var(--papel); border-radius: 28px; padding: 36px; border: 1px solid var(--linea); }
+    .idea ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+    .idea li { display: flex; gap: 14px; align-items: flex-start; }
+    .idea li i { flex: none; width: 18px; height: 18px; border-radius: 50%; margin-top: 4px; }
+    @media (max-width: 720px) { .idea { grid-template-columns: 1fr; } .idea .simbolo { max-width: 220px; } }
+
+    /* Logos */
+    .muestra { border-radius: 20px; border: 1px solid var(--linea); overflow: hidden; display: flex; flex-direction: column; }
+    .muestra .fondo { min-height: 170px; display: grid; place-items: center; padding: 28px; }
+    .muestra .fondo img { max-height: 76px; width: auto; }
+    .muestra .fondo img.alto { max-height: 120px; }
+    .muestra .pie { background: var(--papel); padding: 12px 16px; display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: .9rem; }
+    .muestra .pie a { font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .proteccion { position: relative; display: inline-block; padding: 28px; border: 2px dashed var(--coral); border-radius: 8px; background: repeating-linear-gradient(45deg, transparent 0 8px, var(--coral-claro) 8px 10px); }
+    .proteccion img { height: 64px; width: auto; background: var(--arena); }
+    .mal { position: relative; }
+    .mal .fondo { min-height: 130px; }
+    .mal .x { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border-radius: 50%; background: #B3261E; color: #fff; display: grid; place-items: center; font-weight: 800; }
+
+    /* Colores */
+    .color { border-radius: 20px; overflow: hidden; border: 1px solid var(--linea); background: var(--papel); cursor: pointer; text-align: left; font: inherit; color: inherit; padding: 0; }
+    .color:focus-visible { outline: 3px solid var(--sol); outline-offset: 3px; }
+    .color .tinte { height: 120px; display: flex; align-items: flex-end; padding: 12px 14px; font-weight: 700; font-size: .85rem; }
+    .color .datos { padding: 14px; }
+    .color .datos b { font-family: var(--titulos); font-size: 1.1rem; display: block; }
+    .color .datos code { font-size: .85rem; color: var(--suave); }
+    .color .datos p { margin-top: 6px; color: var(--suave); font-size: .9rem; }
+    .proporcion { display: flex; height: 56px; border-radius: 14px; overflow: hidden; margin-top: 24px; border: 1px solid var(--linea); }
+    .proporcion span { display: grid; place-items: center; font-weight: 700; font-size: .85rem; }
+
+    /* Tipografía */
+    .tipo .grande { font-size: clamp(2.6rem, 7vw, 4.4rem); line-height: 1; margin: 10px 0 14px; }
+    .tipo .letras { font-size: 1.1rem; letter-spacing: .02em; color: var(--suave); word-break: break-all; }
+    .jerarquia { display: grid; gap: 14px; margin-top: 24px; }
+    .jerarquia div { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: baseline; padding-bottom: 14px; border-bottom: 1px dashed var(--linea); }
+    .jerarquia small { color: var(--suave); font-size: .82rem; }
+    @media (max-width: 600px) { .jerarquia div { grid-template-columns: 1fr; gap: 2px; } }
+
+    /* Voz */
+    .tabla { width: 100%; border-collapse: collapse; margin-top: 28px; background: var(--papel); border-radius: 20px; overflow: hidden; border: 1px solid var(--linea); }
+    .tabla th, .tabla td { text-align: left; padding: 14px 16px; vertical-align: top; border-bottom: 1px solid var(--linea); }
+    .tabla th { font-family: var(--titulos); background: var(--verde-claro); }
+    .tabla td:nth-child(2) { color: var(--verde); font-weight: 600; }
+    .tabla td:nth-child(3) { color: #8E1F19; text-decoration: line-through; text-decoration-color: rgba(142, 31, 25, .4); }
+    .tabla tr:last-child td { border-bottom: 0; }
+    @media (max-width: 700px) { .tabla, .tabla tbody, .tabla tr, .tabla td { display: block; } .tabla thead { display: none; } .tabla td { border: 0; padding: 4px 16px; } .tabla tr { padding: 12px 0; border-bottom: 1px solid var(--linea); } .tabla td:first-child { font-weight: 700; } }
+
+    /* Mensajes */
+    .mensaje { background: var(--papel); border: 1px solid var(--linea); border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .mensaje .burbuja { background: #E7F7DD; color: #1E2A28; border-radius: 4px 16px 16px 16px; padding: 14px 16px; white-space: pre-line; font-size: .95rem; flex: 1; }
+    .mensaje .acc { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .mensaje small { color: var(--suave); }
+    .copiar { font: inherit; font-weight: 700; font-size: .9rem; background: #1F5E4A; color: #fff; border: 0; border-radius: 99px; padding: 8px 16px; cursor: pointer; }
+    .copiar:focus-visible { outline: 3px solid var(--sol); outline-offset: 2px; }
+
+    /* Aplicaciones */
+    .tarjeta-pres { aspect-ratio: 85 / 55; border-radius: 14px; padding: 7% 8%; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 16px 32px -18px rgba(30, 42, 40, .5); }
+    .tarjeta-pres.frente { background: #1F5E4A; color: #fff; }
+    .tarjeta-pres.frente img { height: 22%; width: auto; }
+    .tarjeta-pres.frente p { font-family: var(--titulos); font-size: clamp(.8rem, 1.6vw, 1rem); color: rgba(255, 255, 255, .9); }
+    .tarjeta-pres.atras { background: var(--papel); border: 1px solid var(--linea); }
+    .tarjeta-pres.atras b { font-family: var(--titulos); font-size: clamp(1rem, 2vw, 1.25rem); display: block; }
+    .tarjeta-pres.atras span { color: var(--coral-txt); font-weight: 700; font-size: .85rem; }
+    .tarjeta-pres.atras small { color: var(--suave); display: block; line-height: 1.5; }
+    .tarjeta-pres.atras img { height: 16%; width: auto; align-self: flex-end; }
+    .firma-correo { background: var(--papel); border: 1px solid var(--linea); border-radius: 20px; padding: 22px; }
+    .firma-app { background: var(--papel); border: 1px solid var(--linea); border-radius: 20px; padding: 28px; text-align: center; color: var(--suave); font-size: .9rem; }
+    .firma-app b { color: var(--coral-txt); }
+    .redes { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .redes img { width: 120px; height: 120px; border-radius: 50%; border: 1px solid var(--linea); }
+    .descargas { display: grid; gap: 8px; margin-top: 24px; }
+    .descargas a { display: flex; justify-content: space-between; gap: 12px; background: var(--papel); border: 1px solid var(--linea); border-radius: 14px; padding: 14px 18px; text-decoration: none; color: var(--tinta); font-weight: 600; }
+    .descargas a span { color: var(--suave); font-weight: 400; }
+    .descargas a:hover { border-color: var(--verde); }
+    footer { padding: 40px 0 56px; color: var(--suave); font-size: .9rem; }
+    .aviso { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(120px); background: var(--tinta); color: #fff; padding: 10px 18px; border-radius: 99px; font-weight: 600; transition: transform .2s; }
+    .aviso.ver { transform: translateX(-50%) translateY(0); }
+    @media (prefers-reduced-motion: reduce) { .aviso { transition: none; } }
+  </style>
+</head>
+<body>
+
+  <header class="portada">
+    <div class="envoltura">
+      <img src="archivos/elka-logo-blanco.svg" alt="Elka">
+      <h1>Manual de marca</h1>
+      <p>Cómo se ve, cómo suena y cómo se usa Elka. Para que todo lo que hagamos (la app, las redes, los mensajes y las presentaciones) se reconozca a primera vista.</p>
+      <nav class="indice" aria-label="Contenido">
+        <a href="#idea">La idea</a><a href="#logo">Logo</a><a href="#colores">Colores</a><a href="#tipografia">Tipografía</a>
+        <a href="#voz">Cómo hablamos</a><a href="#mensajes">Mensajes listos</a><a href="#aplicaciones">Aplicaciones</a><a href="#descargas">Descargas</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="idea">
+      <div class="envoltura">
+        <p class="num">01 · La idea</p>
+        <h2>Ordenamos tu negocio, acompañamos tu crecimiento.</h2>
+        <p class="lead"><b>Elka</b> une los nombres de sus fundadores, <b>El</b>vis Pareja de la Hoz y <b>K</b>ei<b>la</b> Cabarcas Vega: un ingeniero de sistemas y una trabajadora social. La marca junta esas dos mitades: tecnología que se entiende y acompañamiento humano.</p>
+
+        <div class="idea">
+          <div class="simbolo"><img src="archivos/elka-simbolo.svg" alt="Símbolo de Elka: un brote con dos hojas"></div>
+          <ul>
+            <li><i style="background:#1F5E4A"></i><div><b>La hoja verde es la tecnología.</b> Firme, ordenada, la base que sostiene el negocio.</div></li>
+            <li><i style="background:#E9785A"></i><div><b>La hoja coral es el acompañamiento.</b> Cálida y humana; está más arriba porque es lo que hace crecer.</div></li>
+            <li><i style="background:#1E2A28"></i><div><b>El tallo y la tierra son el orden.</b> Un negocio crece firme cuando tiene raíz y sus números claros.</div></li>
+            <li><i style="background:#F2B544"></i><div><b>El brote es la emprendedora.</b> Empieza pequeño y, bien cuidado, crece.</div></li>
+          </ul>
+        </div>
+
+        <div class="rejilla r4">
+          <div class="caja valor"><b>Cercanía</b><p>Hablamos como una amiga que sabe del tema. Nada de palabras de banco.</p></div>
+          <div class="caja valor"><b>Claridad</b><p>Si no se entiende a la primera, lo decimos de otra forma.</p></div>
+          <div class="caja valor"><b>Orden</b><p>Pocas cosas, bien hechas y en su lugar. También en el diseño.</p></div>
+          <div class="caja valor"><b>Crecimiento</b><p>Celebramos los avances, por pequeños que sean.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="logo">
+      <div class="envoltura">
+        <p class="num">02 · Logo</p>
+        <h2>Un brote y una palabra.</h2>
+        <p class="lead">La palabra "elka" está dibujada con trazos redondos, en minúscula: amable y sin pretensiones. Usa siempre los archivos originales; no lo escribas con otra letra.</p>
+
+        <div class="rejilla r3">
+          <div class="muestra"><div class="fondo" style="background:#FBF6EF"><img src="archivos/elka-logo.svg" alt="Logo horizontal"></div><div class="pie">Principal, horizontal <a href="archivos/elka-logo.svg" download>Descargar</a></div></div>
+          <div class="muestra"><div class="fondo" style="background:#FBF6EF"><img class="alto" src="archivos/elka-logo-vertical.svg" alt="Logo vertical"></div><div class="pie">Vertical, para espacios cuadrados <a href="archivos/elka-logo-vertical.svg" download>Descargar</a></div></div>
+          <div class="muestra"><div class="fondo" style="background:#1F5E4A"><img src="archivos/elka-logo-blanco.svg" alt="Logo en blanco"></div><div class="pie">Sobre fondos oscuros <a href="archivos/elka-logo-blanco.svg" download>Descargar</a></div></div>
+          <div class="muestra"><div class="fondo" style="background:#FFFFFF"><img src="archivos/elka-logo-negro.svg" alt="Logo en un solo color"></div><div class="pie">Un solo color (sellos, fotocopias) <a href="archivos/elka-logo-negro.svg" download>Descargar</a></div></div>
+          <div class="muestra"><div class="fondo" style="background:#FBF6EF"><img src="archivos/elka-simbolo.svg" alt="Símbolo"></div><div class="pie">Solo el símbolo <a href="archivos/elka-simbolo.svg" download>Descargar</a></div></div>
+          <div class="muestra"><div class="fondo" style="background:#E3EFE9"><img src="archivos/elka-icono.svg" alt="Ícono de app"></div><div class="pie">Ícono y favicon <a href="archivos/elka-icono.svg" download>Descargar</a></div></div>
+        </div>
+
+        <div class="rejilla r2" style="margin-top:40px">
+          <div class="caja">
+            <h3>Espacio de respeto</h3>
+            <p>Deja libre alrededor del logo, como mínimo, el alto de la hoja coral. Ningún texto ni imagen entra en esa zona.</p>
+            <div style="margin-top:20px"><span class="proteccion"><img src="archivos/elka-logo.svg" alt="Logo con su espacio de respeto"></span></div>
+          </div>
+          <div class="caja">
+            <h3>Tamaño mínimo</h3>
+            <p>Logo horizontal: 96 px de ancho en pantalla o 25 mm impreso. Símbolo solo: 20 px o 6 mm. Más pequeño, la palabra deja de leerse.</p>
+            <div style="display:flex;gap:24px;align-items:flex-end;margin-top:20px"><img src="archivos/elka-logo.svg" alt="Logo a tamaño mínimo" style="width:96px"><img src="archivos/elka-simbolo.svg" alt="Símbolo a tamaño mínimo" style="width:20px"></div>
+          </div>
+        </div>
+
+        <h3 style="margin-top:40px">Lo que no se hace</h3>
+        <div class="rejilla r4" style="margin-top:16px">
+          <div class="muestra mal"><span class="x" aria-hidden="true">×</span><div class="fondo" style="background:#FBF6EF"><img src="archivos/elka-logo.svg" alt="" style="width:58%;height:auto;transform:scaleX(1.5)"></div><div class="pie">No estirarlo ni aplastarlo</div></div>
+          <div class="muestra mal"><span class="x" aria-hidden="true">×</span><div class="fondo" style="background:#FBF6EF"><img src="archivos/elka-logo.svg" alt="" style="filter:hue-rotate(160deg)"></div><div class="pie">No cambiarle los colores</div></div>
+          <div class="muestra mal"><span class="x" aria-hidden="true">×</span><div class="fondo" style="background:#E9785A"><img src="archivos/elka-logo.svg" alt=""></div><div class="pie">No ponerlo donde no se lea</div></div>
+          <div class="muestra mal"><span class="x" aria-hidden="true">×</span><div class="fondo" style="background:#FBF6EF"><img src="archivos/elka-logo.svg" alt="" style="filter:drop-shadow(4px 6px 3px rgba(0,0,0,.5));transform:rotate(-12deg)"></div><div class="pie">No girarlo ni ponerle sombras</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="colores">
+      <div class="envoltura">
+        <p class="num">03 · Colores</p>
+        <h2>Verde que da confianza, coral que abraza.</h2>
+        <p class="lead">Toca un color para copiar su código. El verde lleva el peso; el coral y el sol son acentos: si están en todas partes, dejan de resaltar.</p>
+        <div class="rejilla r3" id="paleta"></div>
+        <div class="proporcion" aria-label="Proporción de uso de los colores">
+          <span style="flex:60;background:#FBF6EF;color:#1E2A28">Arena 60 %</span>
+          <span style="flex:25;background:#1F5E4A;color:#fff">Verde 25 %</span>
+          <span style="flex:10;background:#E9785A;color:#1E2A28">10 %</span>
+          <span style="flex:5;background:#F2B544"></span>
+        </div>
+        <div class="rejilla r2" style="margin-top:24px">
+          <div class="caja"><h3>Para que se lea bien</h3><p>Texto blanco solo sobre Verde Raíz o Tinta. Sobre Coral y Sol, el texto va en Tinta. Para texto coral sobre fondo claro usa Coral Texto.</p></div>
+          <div class="caja"><h3>Las apps de cada negocio</h3><p>Cada emprendedora usa sus propios colores en su app. Elka aparece solo en la firma "Con el acompañamiento de Elka" y en la pantalla de bienvenida.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tipografia">
+      <div class="envoltura">
+        <p class="num">04 · Tipografía</p>
+        <h2>Dos letras, gratis y de Google Fonts.</h2>
+        <p class="lead">Son las mismas de la app, así la marca y el producto se sienten como una sola cosa. Si no están disponibles (por ejemplo, en Word), usa Segoe UI o Arial.</p>
+        <div class="rejilla r2">
+          <div class="caja tipo">
+            <small>Títulos · Bricolage Grotesque, 700 y 800</small>
+            <p class="grande" style="font-family:var(--titulos);font-weight:800">Crecer con orden</p>
+            <p class="letras" style="font-family:var(--titulos)">Aa Bb Cc Dd Ee Ññ Oo 0123456789 $ %</p>
+            <p><a href="https://fonts.google.com/specimen/Bricolage+Grotesque" target="_blank" rel="noopener">Descargar en Google Fonts</a></p>
+          </div>
+          <div class="caja tipo">
+            <small>Textos · Instrument Sans, 400, 600 y 700</small>
+            <p class="grande" style="font-family:var(--texto);font-weight:600;font-size:clamp(2rem,5vw,3rem)">Tus números claros</p>
+            <p class="letras">Aa Bb Cc Dd Ee Ññ Oo 0123456789 $ %</p>
+            <p><a href="https://fonts.google.com/specimen/Instrument+Sans" target="_blank" rel="noopener">Descargar en Google Fonts</a></p>
+          </div>
+        </div>
+        <div class="jerarquia">
+          <div><small>Título grande</small><p style="font-family:var(--titulos);font-weight:800;font-size:2.4rem;line-height:1.05">Tu punto de equilibrio</p></div>
+          <div><small>Subtítulo</small><p style="font-family:var(--titulos);font-weight:700;font-size:1.4rem">Cuánto vender para no perder</p></div>
+          <div><small>Antetítulo</small><p style="font-weight:700;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;color:var(--coral-txt)">Finanzas de tu negocio</p></div>
+          <div><small>Texto</small><p>Es lo que necesitas vender al mes para cubrir tus gastos. Por encima de esa cifra empieza tu ganancia.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="voz">
+      <div class="envoltura">
+        <p class="num">05 · Cómo hablamos</p>
+        <h2>Como una amiga que sabe de números.</h2>
+        <p class="lead">Nuestras clientas son emprendedoras ocupadas, muchas sin formación contable. Cada palabra debe ayudarles a entender y a decidir, nunca hacerlas sentir mal.</p>
+        <table class="tabla">
+          <thead><tr><th>Principio</th><th>Decimos</th><th>No decimos</th></tr></thead>
+          <tbody>
+            <tr><td>Tuteamos, con calidez</td><td>Te acompañamos a ordenar tu negocio.</td><td>Brindamos soluciones integrales de gestión.</td></tr>
+            <tr><td>Palabras de todos los días</td><td>Plata, ganancia, lo que te deben, lo que gastas.</td><td>Liquidez, utilidad neta, cartera, egresos.</td></tr>
+            <tr><td>Una idea por frase</td><td>Anota tus gastos. Así sabes cuánto ganas.</td><td>Mediante el registro sistemático de egresos podrás determinar tu rentabilidad.</td></tr>
+            <tr><td>Animamos sin juzgar</td><td>Este mes vendiste menos. Miremos juntas qué pasó.</td><td>Tus ventas fueron deficientes este periodo.</td></tr>
+            <tr><td>Concretos con los números</td><td>Te faltan $670.000 para cubrir los gastos.</td><td>Estás por debajo del umbral de rentabilidad.</td></tr>
+            <tr><td>Sin tecnicismos</td><td>Te mandamos un enlace; ábrelo y sigue los pasos.</td><td>Accede a la URL de despliegue y autentícate.</td></tr>
+          </tbody>
+        </table>
+        <div class="rejilla r3">
+          <div class="caja"><h3>A quién le hablamos</h3><p>A una emprendedora concreta, en femenino ("bienvenida", "tú misma"). En piezas abiertas al público: "emprendedoras y emprendedores" o "tu negocio".</p></div>
+          <div class="caja"><h3>Emojis</h3><p>Pocos y con sentido: 🌱 para crecimiento, ✅ para algo listo, 📊 para números. Uno por mensaje basta.</p></div>
+          <div class="caja"><h3>Firmamos así</h3><p>"Elvis, de Elka" o "Keila, de Elka". Las personas detrás de la marca son parte de la promesa.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="mensajes">
+      <div class="envoltura">
+        <p class="num">06 · Mensajes listos</p>
+        <h2>Para WhatsApp, listos para copiar.</h2>
+        <p class="lead">Cambia lo que está entre [corchetes] antes de enviar.</p>
+        <div class="rejilla r2" id="mensajes-lista"></div>
+      </div>
+    </section>
+
+    <section id="aplicaciones">
+      <div class="envoltura">
+        <p class="num">07 · Aplicaciones</p>
+        <h2>La marca en el día a día.</h2>
+
+        <h3 style="margin-top:32px">Tarjeta de presentación (85 × 55 mm)</h3>
+        <div class="rejilla r3">
+          <div class="tarjeta-pres frente"><img src="archivos/elka-logo-blanco.svg" alt="Elka"><p>Ordenamos tu negocio, acompañamos tu crecimiento.</p></div>
+          <div class="tarjeta-pres atras"><div><b>Elvis Pareja de la Hoz</b><span>Ingeniero de sistemas</span></div><small>[WhatsApp]<br>[correo]<br>[página web]</small><img src="archivos/elka-simbolo.svg" alt=""></div>
+          <div class="tarjeta-pres atras"><div><b>Keila Cabarcas Vega</b><span>Trabajadora social</span></div><small>[WhatsApp]<br>[correo]<br>[página web]</small><img src="archivos/elka-simbolo.svg" alt=""></div>
+        </div>
+
+        <div class="rejilla r2" style="margin-top:32px">
+          <div class="caja">
+            <h3>Foto de perfil (Instagram, WhatsApp Business)</h3>
+            <p>El símbolo sobre fondo arena. Funciona en el recorte redondo.</p>
+            <div class="redes" style="margin-top:16px"><img src="archivos/elka-perfil.svg" alt="Foto de perfil de Elka"><a href="archivos/elka-perfil.svg" download>Descargar (1080 × 1080)</a></div>
+          </div>
+          <div class="caja">
+            <h3>Firma en la app de cada negocio</h3>
+            <p>Va en la pantalla de entrada y en la bienvenida. Discreta: la protagonista es la marca de la emprendedora.</p>
+            <div class="firma-app" style="margin-top:16px">Con el acompañamiento de <b>Elka</b> · Ordenamos tu negocio</div>
+          </div>
+        </div>
+
+        <div class="firma-correo" style="margin-top:16px">
+          <h3>Firma de correo</h3>
+          <p style="color:var(--suave);margin-top:6px">Copia la firma y pégala en la configuración de tu correo (Gmail → Configuración → Firma).</p>
+          <div id="firma" style="margin-top:18px;font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#1E2A28">
+            <table cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+              <td style="padding-right:14px;border-right:3px solid #E9785A;vertical-align:middle"><img src="archivos/elka-simbolo.svg" width="44" height="44" alt="Elka" style="display:block"></td>
+              <td style="padding-left:14px;vertical-align:middle"><b style="font-size:15px">[Tu nombre]</b><br><span style="color:#B4482D">[Tu rol] · Elka</span><br><span style="color:#5C6662">Ordenamos tu negocio, acompañamos tu crecimiento.</span><br><span style="color:#5C6662">[WhatsApp] · [página web]</span></td>
+            </tr></table>
+          </div>
+          <button class="copiar" type="button" data-copiar-html="firma" style="margin-top:16px">Copiar firma</button>
+          <p style="color:var(--suave);font-size:.85rem;margin-top:10px">Para que la imagen salga en el correo, el sitio debe estar publicado (Gmail no muestra imágenes de tu computador).</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="descargas" style="border-bottom:0">
+      <div class="envoltura">
+        <p class="num">08 · Descargas</p>
+        <h2>Todos los archivos.</h2>
+        <p class="lead">Son SVG: se ven nítidos a cualquier tamaño y abren en Canva, Illustrator, Inkscape o el navegador. Para un PNG, ábrelos en Canva y descárgalos en ese formato.</p>
+        <div class="descargas">
+          <a href="archivos/elka-logo.svg" download>Logo horizontal <span>elka-logo.svg</span></a>
+          <a href="archivos/elka-logo-vertical.svg" download>Logo vertical <span>elka-logo-vertical.svg</span></a>
+          <a href="archivos/elka-logo-blanco.svg" download>Logo en blanco <span>elka-logo-blanco.svg</span></a>
+          <a href="archivos/elka-logo-negro.svg" download>Logo en un color <span>elka-logo-negro.svg</span></a>
+          <a href="archivos/elka-simbolo.svg" download>Símbolo <span>elka-simbolo.svg</span></a>
+          <a href="archivos/elka-simbolo-blanco.svg" download>Símbolo en blanco <span>elka-simbolo-blanco.svg</span></a>
+          <a href="archivos/elka-icono.svg" download>Ícono de app <span>elka-icono.svg</span></a>
+          <a href="archivos/elka-perfil.svg" download>Foto de perfil <span>elka-perfil.svg</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="envoltura">Elka · Elvis Pareja de la Hoz y Keila Cabarcas Vega · <a href="../">Volver a la página de Elka</a></div></footer>
+  <div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      var COLORES = [
+        { n: 'Verde Raíz', hex: '#1F5E4A', rgb: '31 94 74', uso: 'Color principal: logo, botones, fondos de marca.', txt: '#fff' },
+        { n: 'Coral Abrazo', hex: '#E9785A', rgb: '233 120 90', uso: 'El acompañamiento: acentos, la hoja, ilustraciones.', txt: '#1E2A28' },
+        { n: 'Sol', hex: '#F2B544', rgb: '242 181 68', uso: 'Logros y metas: barras de avance, sellos.', txt: '#1E2A28' },
+        { n: 'Arena', hex: '#FBF6EF', rgb: '251 246 239', uso: 'Fondo general. Cálido, nunca blanco puro.', txt: '#1E2A28' },
+        { n: 'Tinta', hex: '#1E2A28', rgb: '30 42 40', uso: 'Textos y la palabra "elka".', txt: '#fff' },
+        { n: 'Coral Texto', hex: '#B4482D', rgb: '180 72 45', uso: 'Texto coral sobre fondos claros (se lee bien).', txt: '#fff' }
+      ];
+      var MENSAJES = [
+        { t: 'Primer contacto', m: '¡Hola, [nombre]! 🌱 Gracias por escribirnos. Somos Elvis y Keila, de Elka.\nAyudamos a emprendedoras a ordenar sus pedidos y sus números con una app gratis que funciona en el celular.\n¿Nos cuentas qué vendes y cómo te llegan los pedidos hoy? Así te mostramos cómo te puede servir.' },
+        { t: 'Enlace de activación', m: '¡Hola, [nombre]! ✅ Tu app de [negocio] ya está lista.\n1. Abre este enlace: [enlace]\n2. Sigue los 3 pasos: tu negocio, tu usuario y clave, y tus gastos del mes.\nEl código ya viene en el enlace; si te lo pide, es [CÓDIGO] (sirve una sola vez).\nAl terminar, ponla en tu pantalla de inicio:\n• Android: menú ⋮ → "Instalar app"\n• iPhone: botón Compartir → "Agregar a inicio"\nCualquier duda, aquí estamos. — Elvis, de Elka' },
+        { t: 'Mejora en la app', m: '¡Hola, [nombre]! 🌱 Tu app tiene novedades: [qué cambió, en una frase].\nNo tienes que hacer nada: ya está actualizada. Si la tenías abierta, ciérrala y vuelve a entrar.\n— Elvis, de Elka' },
+        { t: 'Sesión mensual', m: '¡Hola, [nombre]! 📊 Ya cerró [mes]. ¿Revisamos juntas tus números?\nEn 30 minutos vemos cuánto vendiste, cuánto ganaste y qué tan cerca estás de tu punto de equilibrio.\n¿Te queda bien el [día] a las [hora]? — Keila, de Elka' },
+        { t: 'Recordatorio de pago', m: '¡Hola, [nombre]! Te recordamos con cariño que el [fecha] vence el pago de tu plan [plan] ([valor]).\nPuedes pagar por [medio de pago]. Si ya lo hiciste, ¡gracias! y no tengas en cuenta este mensaje.\n— Elka' },
+        { t: 'Cuando no podemos responder ya', m: '¡Hola, [nombre]! Recibimos tu mensaje. En este momento estamos con otra emprendedora, pero te respondemos hoy antes de las [hora].\nSi es urgente y la app no abre, escríbenos "URGENTE" y lo atendemos primero. 🌱' }
+      ];
+      var aviso = document.getElementById('aviso'), t;
+      function avisar(txt) { aviso.textContent = txt; aviso.classList.add('ver'); clearTimeout(t); t = setTimeout(function () { aviso.classList.remove('ver'); }, 2200); }
+      function copiarTexto(txt) {
+        if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(txt);
+        var a = document.createElement('textarea'); a.value = txt; a.style.position = 'fixed'; a.style.opacity = '0';
+        document.body.appendChild(a); a.select();
+        try { document.execCommand('copy'); } finally { document.body.removeChild(a); }
+        return Promise.resolve();
+      }
+      function el(tag, cls, txt) { var n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; }
+
+      var paleta = document.getElementById('paleta');
+      COLORES.forEach(function (c) {
+        var b = el('button', 'color'); b.type = 'button';
+        b.setAttribute('aria-label', c.n + ', ' + c.hex + '. Copiar código');
+        var tinte = el('div', 'tinte', c.hex); tinte.style.background = c.hex; tinte.style.color = c.txt;
+        if (c.hex === '#FBF6EF') tinte.style.borderBottom = '1px solid #E7E1D8';
+        var d = el('div', 'datos');
+        d.appendChild(el('b', null, c.n));
+        d.appendChild(el('code', null, 'HEX ' + c.hex + ' · RGB ' + c.rgb));
+        d.appendChild(el('p', null, c.uso));
+        b.appendChild(tinte); b.appendChild(d);
+        b.addEventListener('click', function () { copiarTexto(c.hex).then(function () { avisar('Copiado ' + c.hex); }); });
+        paleta.appendChild(b);
+      });
+
+      var lista = document.getElementById('mensajes-lista');
+      MENSAJES.forEach(function (x) {
+        var c = el('article', 'mensaje');
+        c.appendChild(el('h3', null, x.t));
+        c.appendChild(el('div', 'burbuja', x.m));
+        var acc = el('div', 'acc');
+        acc.appendChild(el('small', null, x.m.length + ' caracteres'));
+        var b = el('button', 'copiar', 'Copiar'); b.type = 'button';
+        b.addEventListener('click', function () { copiarTexto(x.m).then(function () { avisar('Mensaje copiado'); }); });
+        acc.appendChild(b);
+        c.appendChild(acc);
+        lista.appendChild(c);
+      });
+
+      document.querySelectorAll('[data-copiar-html]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var n = document.getElementById(b.getAttribute('data-copiar-html'));
+          var html = n.innerHTML.replace(/src="archivos\//g, 'src="' + new URL('archivos/', location.href).href);
+          if (navigator.clipboard && window.ClipboardItem && window.isSecureContext) {
+            navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([n.innerText], { type: 'text/plain' }) })])
+              .then(function () { avisar('Firma copiada'); });
+          } else {
+            var r = document.createRange(); r.selectNode(n);
+            var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+            try { document.execCommand('copy'); avisar('Firma copiada'); } finally { s.removeAllRanges(); }
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

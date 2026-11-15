@@ -1,0 +1,244 @@
+/* JsBienvenida: activación. La dueña configura su negocio, su acceso y sus gastos fijos sin tocar la hoja.
+   Solo funciona con el código de activación (viene en el enlace …?activar=CODIGO o se escribe a mano).
+   Se mete dentro del mismo (function () { ... })() de Index.html: comparte sus variables. */
+      var BV = { codigo: '', paso: 0, logo: null, fijos: [], color: '', usuarioTocado: false };
+      var BV_COLORES = ['#C0245E', '#B4462F', '#9A6A00', '#2F7D4F', '#1F6F8B', '#3F51B5', '#6B3FA0', '#2A2128'];
+      var BV_FIJOS = ['Arriendo', 'Servicios públicos', 'Internet y teléfono'];
+
+      /** Lee ?activar=… de la dirección de la app. La página de GitHub se lo pasa al iframe. */
+      function leerCodigoEnlace(cb) {
+        var listo = false;
+        function fin(c) { if (!listo) { listo = true; cb(c || ''); } }
+        try {
+          google.script.url.getLocation(function (loc) { fin(loc && loc.parameter && loc.parameter.activar); });
+          setTimeout(function () { fin(''); }, 3000); // si no responde, se sigue normal
+        } catch (e) { fin(''); }
+      }
+
+      function mostrarBienvenida(codigo) {
+        $('#cargando').hidden = true;
+        $('#login').hidden = true;
+        $('#app').hidden = true;
+        $('#bienvenida').hidden = false;
+        $('#bv-codigo').value = codigo || '';
+        irPasoBv(0);
+        if (codigo) revisarCodigoBv();
+      }
+
+      function irPasoBv(n) {
+        BV.paso = n;
+        [0, 1, 2, 3].forEach(function (i) { $('#bv-' + i).hidden = i !== n; });
+        $('#bv-pasos').textContent = n ? 'Paso ' + n + ' de 3' : '';
+        errorBv('');
+        window.scrollTo({ top: 0 });
+        var primero = $('#bv-' + n + ' .ctl');
+        if (primero) primero.focus();
+      }
+
+      function errorBv(t) {
+        var e = $('#bv-error');
+        e.textContent = t || '';
+        e.hidden = !t;
+      }
+
+      function ocupadoBv(boton, texto) {
+        boton.dataset.txt = boton.dataset.txt || boton.textContent;
+        boton.disabled = !!texto;
+        boton.textContent = texto || boton.dataset.txt;
+      }
+
+      $('#l-activar').addEventListener('click', function () { mostrarBienvenida(''); });
+      $('#bv-a-login').addEventListener('click', function () { $('#bienvenida').hidden = true; mostrarLogin(''); });
+      $$('.bv-atras').forEach(function (b) { b.addEventListener('click', function () { irPasoBv(Math.max(0, BV.paso - 1)); }); });
+
+      /* --- Paso 0: el código --- */
+      function revisarCodigoBv() {
+        var codigo = $('#bv-codigo').value.trim();
+        if (codigo.replace(/[^A-Za-z0-9]/g, '').length !== 8) { errorBv('El código tiene 8 letras y números, como ABCD-2345.'); return; }
+        var b = $('#bv-0-ok');
+        ocupadoBv(b, 'Revisando…');
+        llamar('revisarActivacion', [codigo]).then(function (r) {
+          ocupadoBv(b, '');
+          if (!r || !r.ok) { errorBv((r && r.error) || 'No se pudo revisar el código.'); return; }
+          BV.codigo = codigo;
+          $('#bv-negocio').value = r.negocio || '';
+          $('#bv-producto').value = r.producto || '';
+          BV.color = r.principal || BV_COLORES[0];
+          BV.fijos = (r.fijos && r.fijos.length) ? r.fijos : BV_FIJOS.map(function (c) { return { concepto: c, valor: 0 }; });
+          $('#bv-sueldo').value = r.sueldo ? dineroTexto(r.sueldo) : '';
+          pintarColoresBv();
+          pintarFijosBv();
+          irPasoBv(1);
+        }).catch(function () {
+          ocupadoBv(b, '');
+          errorBv('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+        });
+      }
+      $('#bv-0').addEventListener('submit', function (e) { e.preventDefault(); revisarCodigoBv(); });
+
+      /* --- Paso 1: el negocio --- */
+      function selectorColor(cont, actual, nombre, alCambiar) {
+        cont.textContent = '';
+        var lista = BV_COLORES.slice();
+        if (actual && lista.indexOf(actual.toUpperCase()) < 0) lista.unshift(actual.toUpperCase());
+        lista.forEach(function (c) {
+          var l = el('label', 'color-op');
+          var i = el('input'); i.type = 'radio'; i.name = nombre; i.value = c; i.checked = c === (actual || '').toUpperCase();
+          i.setAttribute('aria-label', 'Color ' + c);
+          i.addEventListener('change', function () { alCambiar(c); });
+          var s = el('span'); s.style.background = c;
+          l.appendChild(i); l.appendChild(s);
+          cont.appendChild(l);
+        });
+        var otro = el('label', 'color-otro');
+        var pick = el('input'); pick.type = 'color'; pick.value = actual || BV_COLORES[0];
+        pick.setAttribute('aria-label', 'Elegir otro color');
+        pick.addEventListener('input', function () {
+          $$('input[name="' + nombre + '"]', cont).forEach(function (r) { r.checked = false; });
+          alCambiar(pick.value.toUpperCase());
+        });
+        otro.appendChild(pick);
+        otro.appendChild(el('span', null, 'Otro'));
+        cont.appendChild(otro);
+      }
+      /** Muestra el color elegido en la pantalla mientras se elige. */
+      function probarColor(principal) {
+        S.config = Object.assign({}, S.config || CFG_DEF, { principal: principal });
+        aplicarModo();
+      }
+      function pintarColoresBv() {
+        selectorColor($('#bv-colores'), BV.color, 'bv-color', function (c) { BV.color = c; probarColor(c); });
+        probarColor(BV.color);
+      }
+
+      /** Reduce el logo a 512 px. PNG si tiene transparencia posible; si queda pesado, JPEG. */
+      function prepararLogo(file) {
+        return new Promise(function (resolve, reject) {
+          var url = URL.createObjectURL(file);
+          var img = new Image();
+          img.onload = function () {
+            var k = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight));
+            var cv = document.createElement('canvas');
+            cv.width = Math.max(1, Math.round(img.naturalWidth * k));
+            cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+            cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+            URL.revokeObjectURL(url);
+            var mime = file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+            var data = cv.toDataURL(mime, 0.86);
+            if (data.length > 1400000) { mime = 'image/jpeg'; data = cv.toDataURL(mime, 0.8); }
+            resolve({ mime: mime, base64: data.split(',')[1], vista: data });
+          };
+          img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('logo')); };
+          img.src = url;
+        });
+      }
+      function elegirLogo(input, previa, txt, alListo) {
+        input.addEventListener('change', function () {
+          var file = input.files && input.files[0];
+          if (!file) return;
+          prepararLogo(file).then(function (logo) {
+            previa.src = logo.vista; previa.hidden = false;
+            txt.textContent = 'Tocar para cambiarlo';
+            alListo(logo);
+          }).catch(function () { toast('No se pudo leer esa imagen. Prueba con otra (JPG o PNG).', true); });
+          input.value = '';
+        });
+      }
+      elegirLogo($('#bv-logo'), $('#bv-logo-previa'), $('#bv-logo-txt'), function (logo) { BV.logo = logo; });
+
+      $('#bv-1').addEventListener('submit', function (e) {
+        e.preventDefault();
+        if ($('#bv-negocio').value.trim().length < 2) { errorBv('Escribe el nombre de tu negocio.'); $('#bv-negocio').focus(); return; }
+        if ($('#bv-producto').value.trim().length < 2) { errorBv('Escribe qué vendes (por ejemplo: torta, ramo, almuerzo).'); $('#bv-producto').focus(); return; }
+        irPasoBv(2);
+      });
+
+      /* --- Paso 2: el acceso --- */
+      function sugerirUsuario(nombre) {
+        return (nombre.trim().split(/\s+/)[0] || '').toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ñ/g, 'n').replace(/[^a-z0-9._-]/g, '').slice(0, 30);
+      }
+      $('#bv-nombre').addEventListener('input', function () {
+        if (!BV.usuarioTocado) $('#bv-usuario').value = sugerirUsuario(this.value);
+      });
+      $('#bv-usuario').addEventListener('input', function () { BV.usuarioTocado = true; });
+
+      $('#bv-2').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var u = $('#bv-usuario').value.trim().toLowerCase();
+        $('#bv-usuario').value = u;
+        if ($('#bv-nombre').value.trim().length < 2) { errorBv('Escribe tu nombre.'); $('#bv-nombre').focus(); return; }
+        if (!/^[a-z0-9._-]{3,30}$/.test(u)) { errorBv('El usuario debe tener de 3 a 30 letras o números, sin espacios ni tildes.'); $('#bv-usuario').focus(); return; }
+        if ($('#bv-clave').value.length < 6) { errorBv('La clave debe tener al menos 6 caracteres.'); $('#bv-clave').focus(); return; }
+        if ($('#bv-clave').value !== $('#bv-clave2').value) { errorBv('Las dos claves no son iguales.'); $('#bv-clave2').focus(); return; }
+        irPasoBv(3);
+      });
+
+      /* --- Paso 3: gastos fijos y sueldo --- */
+      function pintarFijosBv() {
+        var cont = $('#bv-fijos');
+        cont.textContent = '';
+        BV.fijos.forEach(function (x, i) {
+          var fila = el('div', 'fijo-fila');
+          var n = el('input', 'ctl'); n.type = 'text'; n.maxLength = 60; n.value = x.concepto; n.placeholder = 'Ej. Arriendo';
+          n.setAttribute('aria-label', 'Gasto fijo ' + (i + 1));
+          n.addEventListener('input', function () { x.concepto = n.value; });
+          fila.appendChild(n);
+          var din = el('div', 'dinero');
+          din.appendChild(el('b', null, '$'));
+          var v = el('input', 'ctl'); v.type = 'text'; v.inputMode = 'numeric'; v.placeholder = '0'; v.value = x.valor ? dineroTexto(x.valor) : '';
+          v.setAttribute('aria-label', 'Valor al mes del gasto fijo ' + (i + 1));
+          v.addEventListener('input', function () { formatearDinero(v); x.valor = digitos(v.value); totalFijosBv(); });
+          din.appendChild(v);
+          fila.appendChild(din);
+          var q = el('button', 'quitar', '×'); q.type = 'button';
+          q.setAttribute('aria-label', 'Quitar este gasto');
+          q.addEventListener('click', function () { BV.fijos.splice(i, 1); pintarFijosBv(); });
+          fila.appendChild(q);
+          cont.appendChild(fila);
+        });
+        totalFijosBv();
+      }
+      function totalFijosBv() {
+        var t = BV.fijos.reduce(function (s, x) { return s + (Number(x.valor) || 0); }, 0);
+        $('#bv-total').textContent = 'Total gastos fijos: ' + fmtDinero(t) + ' al mes';
+      }
+      $('#bv-mas-fijo').addEventListener('click', function () { BV.fijos.push({ concepto: '', valor: 0 }); pintarFijosBv(); $$('#bv-fijos .fijo-fila input')[BV.fijos.length * 2 - 2].focus(); });
+      $('#bv-sueldo').addEventListener('input', function () { formatearDinero(this); });
+
+      function terminarBv(conNumeros, boton) {
+        var datos = {
+          negocio: $('#bv-negocio').value.trim(),
+          producto: $('#bv-producto').value.trim(),
+          principal: BV.color,
+          logo: BV.logo ? { mime: BV.logo.mime, base64: BV.logo.base64 } : null,
+          nombre: $('#bv-nombre').value.trim(),
+          usuario: $('#bv-usuario').value.trim(),
+          clave: $('#bv-clave').value,
+          todoYo: $('#bv-todo').checked,
+          // Las filas con valor en cero son las sugeridas que no llenó: no se guardan.
+          fijos: conNumeros ? BV.fijos.filter(function (x) { return (x.concepto || '').trim() && x.valor > 0; })
+            .map(function (x) { return { concepto: x.concepto.trim(), valor: x.valor }; }) : [],
+          sueldo: conNumeros ? digitos($('#bv-sueldo').value) : 0
+        };
+        ocupadoBv(boton, 'Activando…');
+        errorBv('');
+        llamar('activarApp', [BV.codigo, datos]).then(function (r) {
+          ocupadoBv(boton, '');
+          if (!r || !r.ok) { errorBv((r && r.error) || 'No se pudo activar la app.'); return; }
+          $('#bv-clave').value = ''; $('#bv-clave2').value = '';
+          BV.logo = null;
+          $('#bienvenida').hidden = true;
+          $('#l-activar-caja').hidden = true;
+          S.token = r.token;
+          guardarToken(r.token);
+          entrar(r);
+          cargarLogo();
+          toast('¡Listo! Tu app está activada. Bienvenida, ' + r.nombre.split(' ')[0] + '.');
+        }).catch(function () {
+          ocupadoBv(boton, '');
+          errorBv('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo: no se perdió lo que escribiste.');
+        });
+      }
+      $('#bv-3').addEventListener('submit', function (e) { e.preventDefault(); terminarBv(true, $('#bv-terminar')); });
+      $('#bv-despues').addEventListener('click', function () { terminarBv(false, $('#bv-despues')); });

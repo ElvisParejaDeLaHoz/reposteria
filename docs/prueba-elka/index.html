@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pastelería de Prueba</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#A0522D">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Pastelería de Prueba">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icono.svg">
+  <style>
+    html, body { margin: 0; height: 100%; background: #F4EEF2; }
+    iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+    .respaldo { position: fixed; inset: auto 0 0 0; padding: 10px; text-align: center; font: 14px system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <iframe id="app" src="https://script.google.com/macros/s/AKfycbw9902ERC2am6Vh5G2yMNna8ux7EFvzMoNUr3d0bRhndPXZwuM4N2_of6YZvlMLUXA/exec" title="Pastelería de Prueba" allow="camera; clipboard-write; autoplay"></iframe>
+  <noscript><p class="respaldo"><a href="https://script.google.com/macros/s/AKfycbw9902ERC2am6Vh5G2yMNna8ux7EFvzMoNUr3d0bRhndPXZwuM4N2_of6YZvlMLUXA/exec">Abrir la app</a></p></noscript>
+  <script>
+    // El enlace de activación (…/?activar=ABCD-2345) se le pasa a la app, que muestra la pantalla de bienvenida.
+    (function () {
+      var m = /[?&]activar=([A-Za-z0-9-]{8,12})(?:&|$)/.exec(location.search);
+      if (!m) return;
+      document.getElementById('app').src = "https://script.google.com/macros/s/AKfycbw9902ERC2am6Vh5G2yMNna8ux7EFvzMoNUr3d0bRhndPXZwuM4N2_of6YZvlMLUXA/exec" + '?activar=' + encodeURIComponent(m[1]);
+      // Se quita de la barra de direcciones: si la agrega a la pantalla de inicio, no queda guardado el código.
+      try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ }
+    })();
+  </script>
+</body>
+</html>
