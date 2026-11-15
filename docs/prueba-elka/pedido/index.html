@@ -261,7 +261,7 @@
         if (!codigo) { mostrarError('Enlace incompleto', 'Este enlace no tiene el código del pedido. Pídele al negocio que te lo envíe de nuevo.'); return; }
         clearTimeout(timerReintento);
         ocupado($('actualizar'), 'Actualizando…');
-        pedir('api=seguimiento&c=' + codigo).then(function (r) {
+        pedir('api=seguimiento&codigo=' + codigo).then(function (r) {
           ocupado($('actualizar'), '');
           mostrar('cargando', false);
           if (r && r.ok) { intento = 0; mostrar('ocupado', false); D = r; ultimaConsulta = Date.now(); pintar(); programarSondeo(); return; }
@@ -390,7 +390,7 @@
         if (!$('gracias').hidden) dibujarTarjeta();
       }
       function cargarFoto() {
-        pedir('api=foto&c=' + codigo, 25000).then(function (r) {
+        pedir('api=foto&codigo=' + codigo, 25000).then(function (r) {
           if (!r || !r.ok || !r.dataUrl) { mostrar('foto-tarjeta', false); return; }
           fotoUrl = r.dataUrl;
           $('foto').src = fotoUrl;
@@ -428,7 +428,7 @@
         var b = $('enviar'), err = $('calificar-error');
         ocupado(b, 'Enviando…'); err.hidden = true;
         var com = $('comentario').value.trim().slice(0, 300);
-        pedir('api=calificar&c=' + codigo + '&e=' + estrellas + '&t=' + encodeURIComponent(com)).then(function (r) {
+        pedir('api=calificar&codigo=' + codigo + '&e=' + estrellas + '&t=' + encodeURIComponent(com)).then(function (r) {
           ocupado(b, '');
           if (r && r.ok) { D.calificacion = { estrellas: estrellas, comentario: com }; mostrarGracias(); return; }
           err.textContent = (r && r.ocupado) ? 'Tenemos mucho movimiento en este momento. Inténtalo de nuevo en un minuto: tu calificación es muy importante para nosotros.' : ((r && r.error) || 'No se pudo enviar. Inténtalo de nuevo.');
