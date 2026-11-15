@@ -1,4 +1,4 @@
-/* JsAjustes: la administradora cambia los datos del negocio, el logo y su equipo desde la app, sin abrir la hoja.
+/* JsAjustes: quien administra cambia los datos del negocio, el logo y su equipo desde la app, sin abrir la hoja.
    Se mete dentro del mismo (function () { ... })() de Index.html: comparte sus variables. */
       var AJ = { datos: null, vista: 'negocio', seq: 0, n: 0, editando: null };
       var ROL_AYUDA = {
@@ -8,8 +8,10 @@
         Administrador: 'Ve ventas, finanzas y ajustes.'
       };
 
-      /** El nombre que el negocio le puso a cada tarea (Configuración → "Rol: quien vende"…). */
-      function nombreRol(r) {
+      /** El nombre que el negocio le puso a cada tarea (Configuración → "Rol: quien vende"…), según el sexo de la persona. */
+      function nombreRol(r, sexo) {
+        var C = S.config && S.config.cargos && S.config.cargos[r];
+        if (C && (sexo === 'Mujer' || sexo === 'Hombre')) return sexo === 'Mujer' ? C.f : C.m;
         var T = (S.config && S.config.terminos) || {};
         var t = { Vendedora: T.vende, Decorador: T.prepara, Entregador: T.entrega, Administrador: T.admin }[r] || r;
         return String(t).split(',')[0].replace(/\((f|m)\)\s*$/i, '').trim() || r;
@@ -51,6 +53,8 @@
         c.textContent = '';
         if (!AJ.datos) return;
         if (AJ.vista === 'equipo') ajEquipo(c); else ajNegocio(c);
+        // Para soporte: con esto se sabe de una vez qué versión tiene el negocio.
+        if (AJ.datos.version) c.appendChild(el('p', 'aj-version', 'Versión ' + AJ.datos.version + ' · Con el acompañamiento de Elka'));
       }
 
       /** Campo con etiqueta: devuelve el contenedor; el control queda conectado a su etiqueta. */
@@ -124,12 +128,26 @@
         c.appendChild(p1);
 
         var p2 = panel('Lo que vendes', 'Cómo llegan los pedidos y cómo te pagan.');
-        campos.producto = ajTexto(n.producto, 40);
-        p2.appendChild(ajCampo('¿Qué vendes? (en singular)', campos.producto, 'Ej. torta, ramo, almuerzo. Si es femenino pon (f) al final: "torta (f)". Si el plural no es con "s", escríbelo después de una coma: "pan, panes".'));
+        campos.producto = ajTexto('', 40);
+        var cProd = ajCampo('¿Qué vendes? (en singular)', campos.producto, 'Ej. torta, ramo, almuerzo. Si el plural no termina en "s", escríbelo después de una coma: "pan, panes".');
+        var lFem = el('label', 'check'), iFem = el('input');
+        iFem.type = 'checkbox';
+        lFem.appendChild(iFem);
+        lFem.appendChild(el('span', null, 'Es palabra femenina (la torta, una dona)'));
+        var vProd = el('p', 'previa-producto');
+        vProd.setAttribute('aria-live', 'polite');
+        cProd.appendChild(lFem);
+        cProd.appendChild(vProd);
+        p2.appendChild(cProd);
+        var prodAj = enlazarProducto(campos.producto, iFem, vProd);
+        prodAj.poner(n.producto);
         campos.medios = ajTexto(n.medios, 600, 'area');
         p2.appendChild(ajCampo('Por dónde llegan los pedidos', campos.medios, 'Sepáralos con comas. Ej. WhatsApp, Instagram, En el local.'));
         campos.pagos = ajTexto(n.pagos, 600, 'area');
         p2.appendChild(ajCampo('Cómo te pagan', campos.pagos, 'Sepáralos con comas. Ej. Efectivo, Nequi, Transferencia.'));
+        campos.whatsapp = ajTexto(n.whatsapp ? String(n.whatsapp).replace(/^57(?=3\d{9}$)/, '') : '', 15, 'tel');
+        campos.whatsapp.inputMode = 'tel';
+        p2.appendChild(ajCampo('WhatsApp del negocio', campos.whatsapp, 'Sale en la página de seguimiento de tus clientes, para que te vuelvan a pedir y te recomienden. Ej. 3001234567.'));
         campos.minDesc = ajTexto(n.minDesc, 3, 'number');
         campos.minDesc.min = 1; campos.minDesc.max = 200; campos.minDesc.inputMode = 'numeric';
         p2.appendChild(ajCampo('Mínimo de letras en la descripción del pedido', campos.minDesc, 'En un restaurante, 3 basta ("1 corriente"). En una floristería, 20 obliga a dar detalles.'));
@@ -146,8 +164,8 @@
         g.addEventListener('click', function () {
           var datos = {
             nombre: campos.nombre.value, lema: campos.lema.value, principal: colores.principal, secundario: colores.secundario,
-            producto: campos.producto.value, medios: campos.medios.value, pagos: campos.pagos.value,
-            categorias: campos.categorias.value, minDesc: Number(campos.minDesc.value)
+            producto: prodAj.leer(), medios: campos.medios.value, pagos: campos.pagos.value,
+            categorias: campos.categorias.value, minDesc: Number(campos.minDesc.value), whatsapp: campos.whatsapp.value
           };
           g.disabled = true; g.textContent = 'Guardando…';
           api('guardarNegocio', [datos]).then(function (r) {
@@ -183,13 +201,14 @@
           if (x.usuario === AJ.datos.yo) titulo.appendChild(el('span', 'aj-tu', 'Tú'));
           info.appendChild(titulo);
           var roles = el('div', 'aj-roles');
-          x.roles.forEach(function (r) { roles.appendChild(el('span', 'chip listo', nombreRol(r))); });
+          x.roles.forEach(function (r) { roles.appendChild(el('span', 'chip listo', nombreRol(r, x.sexo))); });
           if (!x.roles.length) roles.appendChild(el('span', 'chip cancelado', 'Sin tarea'));
           info.appendChild(roles);
           var estado = !x.activo ? 'Desactivada: no puede entrar'
             : (x.sinClave ? 'Sin clave: todavía no puede entrar'
               : (x.ingreso ? 'Último ingreso: ' + new Date(x.ingreso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Todavía no ha entrado'));
           info.appendChild(el('p', 'ayuda', estado));
+          if (!x.sexo) info.appendChild(el('p', 'ayuda aj-falta', 'Edítala para indicar si es mujer u hombre.'));
           li.appendChild(info);
           var b = el('button', 'btn-sec', 'Editar');
           b.type = 'button';
@@ -210,6 +229,7 @@
         var nuevo = !x;
         $('#usr-titulo').textContent = nuevo ? 'Agregar persona' : 'Editar a ' + x.nombre;
         $('#usr-nombre').value = nuevo ? '' : x.nombre;
+        $$('input[name="usr-sexo"]').forEach(function (i) { i.checked = !nuevo && i.value === x.sexo; });
         $('#usr-usuario').value = nuevo ? '' : x.usuario;
         $('#usr-bloque-usuario').hidden = !nuevo;
         $('#usr-clave').value = '';
@@ -226,7 +246,9 @@
           var i = el('input'); i.type = 'checkbox'; i.value = r; i.checked = !nuevo && x.roles.indexOf(r) >= 0;
           l.appendChild(i);
           var t = el('span');
-          t.appendChild(el('b', null, nombreRol(r)));
+          var b = el('b', null, nombreRol(r, nuevo ? '' : x.sexo));
+          b.dataset.rol = r;
+          t.appendChild(b);
           t.appendChild(el('small', null, ROL_AYUDA[r]));
           l.appendChild(t);
           cont.appendChild(l);
@@ -238,6 +260,13 @@
         $('#usr-nombre').focus();
       }
 
+      /* Al elegir el sexo, los cargos se escriben como corresponde (Vendedora / Vendedor). */
+      $$('input[name="usr-sexo"]').forEach(function (i) {
+        i.addEventListener('change', function () {
+          $$('#usr-roles b[data-rol]').forEach(function (b) { b.textContent = nombreRol(b.dataset.rol, i.value); });
+        });
+      });
+
       $('#usr-volver').addEventListener('click', function () { dlgUsuario.close(); });
       $('#form-usuario').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -246,11 +275,13 @@
           nuevo: nuevo,
           usuario: nuevo ? $('#usr-usuario').value.trim().toLowerCase() : x.usuario,
           nombre: $('#usr-nombre').value.trim(),
+          sexo: ($('input[name="usr-sexo"]:checked') || {}).value || '',
           roles: $$('#usr-roles input:checked').map(function (i) { return i.value; }),
           clave: $('#usr-clave').value,
           activo: nuevo ? true : $('#usr-activo').checked
         };
         if (datos.nombre.length < 2) { errorUsuario('Escribe el nombre de la persona.'); return; }
+        if (!datos.sexo) { errorUsuario('Indica si es mujer u hombre.'); return; }
         if (nuevo && !/^[a-z0-9._-]{3,30}$/.test(datos.usuario)) { errorUsuario('El usuario debe tener de 3 a 30 letras o números, sin espacios ni tildes.'); return; }
         if (!datos.roles.length) { errorUsuario('Elige al menos una tarea.'); return; }
         if ((nuevo || datos.clave) && datos.clave.length < 6) { errorUsuario('La clave debe tener al menos 6 caracteres.'); return; }

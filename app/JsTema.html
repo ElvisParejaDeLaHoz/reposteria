@@ -257,7 +257,7 @@
 
       /* ---------- Marca: nombre, colores y listas (vienen de la hoja "Configuración") ---------- */
       var CFG_KEY = 'pa_cfg';
-      var CFG_DEF = { nombre: 'Pedidos de arreglos', lema: '', principal: '#C0245E', secundario: '#17382C', medios: [], pagos: [] };
+      var CFG_DEF = { nombre: 'Mis pedidos', lema: '', principal: '#C0245E', secundario: '#17382C', medios: [], pagos: [] };
       function aRgb(h) { var n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
       function aHex(r) { return '#' + r.map(function (v) { return pad2(Math.max(0, Math.min(255, Math.round(v))).toString(16)); }).join(''); }
       function pad2(t) { return t.length < 2 ? '0' + t : t; }

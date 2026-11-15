@@ -19,14 +19,14 @@
   </style>
 </head>
 <body>
-  <iframe id="app" src="https://script.google.com/macros/s/AKfycbw9902ERC2am6Vh5G2yMNna8ux7EFvzMoNUr3d0bRhndPXZwuM4N2_of6YZvlMLUXA/exec" title="Pastelería de Prueba" allow="camera; clipboard-write; autoplay"></iframe>
-  <noscript><p class="respaldo"><a href="https://script.google.com/macros/s/AKfycbw9902ERC2am6Vh5G2yMNna8ux7EFvzMoNUr3d0bRhndPXZwuM4N2_of6YZvlMLUXA/exec">Abrir la app</a></p></noscript>
+  <iframe id="app" src="https://script.google.com/macros/s/AKfycbzEjGwt61rzP2r-jE0Qvqx8wAcDV_3IwgxVfoZkY-KAttSQWeXvBXqxV4BJzwQI1iZwwA/exec" title="Pastelería de Prueba" allow="camera; clipboard-write; autoplay"></iframe>
+  <noscript><p class="respaldo"><a href="https://script.google.com/macros/s/AKfycbzEjGwt61rzP2r-jE0Qvqx8wAcDV_3IwgxVfoZkY-KAttSQWeXvBXqxV4BJzwQI1iZwwA/exec">Abrir la app</a></p></noscript>
   <script>
     // El enlace de activación (…/?activar=ABCD-2345) se le pasa a la app, que muestra la pantalla de bienvenida.
     (function () {
       var m = /[?&]activar=([A-Za-z0-9-]{8,12})(?:&|$)/.exec(location.search);
       if (!m) return;
-      document.getElementById('app').src = "https://script.google.com/macros/s/AKfycbw9902ERC2am6Vh5G2yMNna8ux7EFvzMoNUr3d0bRhndPXZwuM4N2_of6YZvlMLUXA/exec" + '?activar=' + encodeURIComponent(m[1]);
+      document.getElementById('app').src = "https://script.google.com/macros/s/AKfycbzEjGwt61rzP2r-jE0Qvqx8wAcDV_3IwgxVfoZkY-KAttSQWeXvBXqxV4BJzwQI1iZwwA/exec" + '?activar=' + encodeURIComponent(m[1]);
       // Se quita de la barra de direcciones: si la agrega a la pantalla de inicio, no queda guardado el código.
       try { history.replaceState(null, '', location.pathname); } catch (e) { /* sin historial */ }
     })();

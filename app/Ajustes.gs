@@ -1,4 +1,4 @@
-/* Ajustes que la administradora cambia desde la app, sin abrir la hoja: datos del negocio, logo y equipo. */
+/* Ajustes que quien administra cambia desde la app, sin abrir la hoja: datos del negocio, logo y equipo. */
 
 function getAjustes(token) {
   const u = sesion_(token);
@@ -8,10 +8,11 @@ function getAjustes(token) {
   return {
     ok: true,
     yo: u.usuario,
+    version: VERSION_APP,
     negocio: {
       nombre: c.nombre, lema: c.lema, principal: c.principal, secundario: c.secundario,
       producto: c.terminos.producto, medios: c.medios.join(', '), pagos: c.pagos.join(', '),
-      categorias: c.categorias.join(', '), minDesc: c.minDesc
+      categorias: c.categorias.join(', '), minDesc: c.minDesc, whatsapp: c.whatsapp
     },
     usuarios: listaEquipo_()
   };
@@ -19,7 +20,7 @@ function getAjustes(token) {
 
 function listaEquipo_() {
   return leerUsuarios_().lista
-    .map(x => ({ usuario: x.usuario, nombre: x.nombre, roles: x.roles, activo: x.activo, sinClave: !x.clave, ingreso: x.ingreso }))
+    .map(x => ({ usuario: x.usuario, nombre: x.nombre, roles: x.roles, activo: x.activo, sinClave: !x.clave, ingreso: x.ingreso, sexo: x.sexo }))
     .sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre));
 }
 
@@ -81,12 +82,12 @@ function tablaUsuarios_() {
 function agregarUsuario_(r) {
   tablaUsuarios_().agregar({
     'Usuario': r.usuario, 'Nombre': seguro_(r.nombre, 60), 'Rol': r.roles.join(', '),
-    'Clave': hash_(r.usuario, r.clave), 'Activo': r.activo ? 'Sí' : 'No'
+    'Clave': hash_(r.usuario, r.clave), 'Activo': r.activo ? 'Sí' : 'No', 'Sexo': r.sexo || ''
   });
 }
 
 function cambiarUsuario_(fila, r) {
-  const datos = { 'Nombre': seguro_(r.nombre, 60), 'Rol': r.roles.join(', '), 'Activo': r.activo ? 'Sí' : 'No' };
+  const datos = { 'Nombre': seguro_(r.nombre, 60), 'Rol': r.roles.join(', '), 'Activo': r.activo ? 'Sí' : 'No', 'Sexo': r.sexo || '' };
   if (r.clave) datos['Clave'] = hash_(r.usuario, r.clave);
   tablaUsuarios_().escribir(fila, datos);
 }

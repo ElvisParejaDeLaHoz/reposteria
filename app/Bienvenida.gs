@@ -67,7 +67,7 @@ function revisarActivacion(codigo) {
   const c = leerConfig_();
   return {
     ok: true,
-    negocio: c.nombre === CONFIG_DEF.nombre ? '' : c.nombre,
+    negocio: NOMBRES_DE_FABRICA.indexOf(c.nombre) >= 0 ? '' : c.nombre,
     producto: c.terminos.producto,
     principal: c.principal,
     terminos: c.terminos,

@@ -249,6 +249,39 @@ function normCodigo_(v) {
  * `lista` son los usuarios que ya existen ({usuario, roles, activo}); `yo` es quien hace el cambio.
  * Reglas: nadie se quita a sí mismo el acceso de administradora y siempre queda al menos una activa.
  */
+/** "Mujer", "m", "hombre", "H"… → 'Mujer' | 'Hombre' | '' (sin indicar). */
+function sexoDe_(v) {
+  const t = norm_(v);
+  if (/^(mujer|f|fem)/.test(t)) return 'Mujer';
+  if (/^(hombre|h|m$|masc|var)/.test(t)) return 'Hombre';
+  return '';
+}
+
+/** La primera palabra de un cargo en masculino y en femenino: Vendedora → Vendedor/Vendedora, Cocinero → Cocinero/Cocinera. */
+function formasCargo_(etiqueta) {
+  const txt = limpiar_(String(etiqueta || '').split(',')[0]).replace(/\s*\((f|m)\)\s*$/i, '');
+  const i = txt.search(/\s/);
+  const pal = i < 0 ? txt : txt.slice(0, i), resto = i < 0 ? '' : txt.slice(i);
+  let m = pal;
+  if (/ora$/i.test(pal)) m = pal.slice(0, -1);
+  else if (/ona$/i.test(pal)) m = pal.slice(0, -3) + 'ón';
+  else if (/ista$/i.test(pal)) m = pal;
+  else if (/a$/i.test(pal) && pal.length > 3) m = pal.slice(0, -1) + 'o';
+  let f = m;
+  if (/or$/i.test(m)) f = m + 'a';
+  else if (/ón$/i.test(m)) f = m.slice(0, -2) + 'ona';
+  else if (/o$/i.test(m)) f = m.slice(0, -1) + 'a';
+  return { m: m + resto, f: f + resto };
+}
+
+/** Cargo de cada rol según el sexo, con los nombres que el negocio les puso. */
+function cargosRoles_(T) {
+  const out = {};
+  [['Vendedora', T.vende], ['Decorador', T.prepara], ['Entregador', T.entrega], ['Administrador', T.admin]]
+    .forEach(par => { out[par[0]] = formasCargo_(par[1] || par[0]); });
+  return out;
+}
+
 function validarUsuario_(d, lista, yo) {
   d = d || {};
   const nuevo = !!d.nuevo;
@@ -267,16 +300,20 @@ function validarUsuario_(d, lista, yo) {
   const clave = String(d.clave == null ? '' : d.clave);
   if ((nuevo || clave) && (clave.length < MIN_CLAVE || clave.length > 64)) return { error: 'La clave debe tener al menos ' + MIN_CLAVE + ' caracteres.' };
   const activo = nuevo ? true : d.activo !== false;
+  // El sexo se pide al crear; al editar, si no viene, se deja el que tenía.
+  let sexo = sexoDe_(d.sexo);
+  if (!sexo && !nuevo) sexo = existe.sexo || '';
+  if (!sexo) return { error: 'Indica si es mujer u hombre: así la app escribe bien su cargo.' };
 
   if (yo && usuario === yo) {
-    if (!activo) return { error: 'No puedes desactivarte a ti misma.' };
-    if (roles.indexOf('Administrador') < 0) return { error: 'No puedes quitarte el acceso de administradora.' };
+    if (!activo) return { error: 'No puedes quitarte la entrada a la app.' };
+    if (roles.indexOf('Administrador') < 0) return { error: 'No puedes quitarte el acceso de administración.' };
   }
   const admins = lista.filter(x => x.usuario !== usuario && x.activo && x.roles.indexOf('Administrador') >= 0).length +
     (activo && roles.indexOf('Administrador') >= 0 ? 1 : 0);
   if (!admins) return { error: 'Debe quedar al menos una persona activa que administre el negocio.' };
 
-  return { usuario: usuario, nombre: nombre, roles: roles, clave: clave, activo: activo, nuevo: nuevo };
+  return { usuario: usuario, nombre: nombre, roles: roles, clave: clave, activo: activo, nuevo: nuevo, sexo: sexo };
 }
 
 /**
@@ -309,6 +346,10 @@ function validarNegocio_(d) {
     if (!l.length) return { error: 'Escribe al menos ' + listas[k] + '.' };
     out[k] = l.join(', ');
   }
+  if (hay('whatsapp')) {
+    out.whatsapp = String(d.whatsapp).replace(/\D/g, '');
+    if (out.whatsapp && !/^\d{7,15}$/.test(out.whatsapp)) return { error: 'El WhatsApp del negocio debe tener de 7 a 15 números.' };
+  }
   if (hay('minDesc')) {
     out.minDesc = Math.round(Number(d.minDesc));
     if (!(out.minDesc >= 1 && out.minDesc <= 200)) return { error: 'El mínimo de letras debe estar entre 1 y 200.' };
@@ -322,11 +363,94 @@ function validarActivacion_(d, lista) {
   const negocio = validarNegocio_({ nombre: d.negocio == null ? '' : d.negocio, producto: d.producto == null ? '' : d.producto, principal: d.principal == null ? '' : d.principal });
   if (negocio.error) return negocio;
   const admin = validarUsuario_({
-    nuevo: true, usuario: d.usuario, nombre: d.nombre, clave: d.clave,
+    nuevo: true, usuario: d.usuario, nombre: d.nombre, clave: d.clave, sexo: d.sexo,
     roles: d.todoYo ? ROLES_APP.slice() : ['Administrador']
   }, lista, '');
   if (admin.error) return admin;
   const numeros = validarFijos_(d.fijos || [], d.sueldo || 0);
   if (numeros.error) return numeros;
   return { negocio: negocio, admin: admin, fijos: numeros.fijos, sueldo: numeros.sueldo };
+}
+
+/* ---------- Seguimiento del pedido para el cliente ---------- */
+
+const ALFABETO_SEGUIMIENTO = 'abcdefghjkmnpqrstuvwxyz23456789';
+
+/** Código del enlace de seguimiento: 12 letras al azar (no se puede adivinar el de otro pedido). */
+function codigoSeguimientoDesdeBytes_(bytes) {
+  let s = '';
+  for (let i = 0; i < 12; i++) s += ALFABETO_SEGUIMIENTO.charAt(((bytes[i] || 0) & 255) % ALFABETO_SEGUIMIENTO.length);
+  return s;
+}
+
+function esCodigoSeguimiento_(c) { return typeof c === 'string' && /^[a-z2-9]{12}$/.test(c); }
+
+/** "torta (f)" → {singular:'torta', plural:'tortas', femenino:true}; "pan, panes" → plural irregular. */
+function terminoProducto_(t) {
+  let txt = limpiar_(t) || 'pedido';
+  const marca = /\((f|m)\)\s*$/i.exec(txt);
+  txt = txt.replace(/\((f|m)\)\s*$/i, '').trim();
+  // Sin marca se adivina igual que en la app (JsTema → leerTermino): "torta" es femenino, "postre" no.
+  const femenino = marca ? marca[1].toLowerCase() === 'f' : /(a|ción|sión|dad|tad|tud|umbre)$/i.test((txt.split(',')[0] || '').trim().split(/\s+/)[0]);
+  const partes = txt.split(',').map(x => x.trim()).filter(Boolean);
+  const singular = (partes[0] || 'pedido').toLowerCase();
+  const plural = (partes[1] || (/[aeiou]$/i.test(singular) ? singular + 's' : singular + 'es')).toLowerCase();
+  return { singular: singular, plural: plural, femenino: femenino };
+}
+
+/** El enlace deja de funcionar DIAS_SEGUIMIENTO días después de entregado o cancelado. */
+function seguimientoVencido_(p, ahoraMs) {
+  if (p.estado !== 'Entregado' && p.estado !== 'Cancelado') return false;
+  const fin = p.entregadoMs || p.editadoMs || p.registradoMs || 0;
+  return !!fin && ahoraMs - fin > DIAS_SEGUIMIENTO * 86400000;
+}
+
+/**
+ * Lo único que ve el cliente en la página de seguimiento. Lista cerrada a propósito:
+ * nada de teléfonos, direcciones, valores, descripción, nombres del equipo ni notas internas.
+ */
+function vistaPublica_(p, cfg, calif) {
+  const estado = p.estado;
+  return {
+    negocio: {
+      nombre: cfg.nombre, principal: cfg.principal, secundario: cfg.secundario,
+      whatsapp: cfg.whatsapp || '', producto: terminoProducto_(cfg.terminos && cfg.terminos.producto)
+    },
+    pedido: {
+      ref: String(p.id).slice(-6),
+      estado: estado,
+      fecha: p.fecha,
+      hora: p.hora,
+      entrega: p.entrega === 'Domicilio' ? 'Domicilio' : 'Local',
+      pasos: {
+        recibido: p.registradoMs || 0,
+        preparando: estado === 'Cancelado' ? 0 : (p.inicioPrepMs || 0),
+        listo: estado === 'Cancelado' ? 0 : (p.listoMs || 0),
+        camino: estado === 'Cancelado' ? 0 : (p.salioMs || 0),
+        entregado: p.entregadoMs || 0
+      },
+      conFoto: estado === 'Entregado' && !!p.conEvidencia
+    },
+    calificacion: calif ? { estrellas: calif.estrellas, comentario: calif.comentario } : null
+  };
+}
+
+function validarCalificacion_(estrellas, comentario) {
+  const e = Math.round(Number(estrellas));
+  if (!(e >= 1 && e <= 5)) return { error: 'Elige de 1 a 5 estrellas.' };
+  return { estrellas: e, comentario: limpiar_(comentario).replace(/\s+/g, ' ').slice(0, 300) };
+}
+
+/** Para la administradora: promedio, cuántas de cada estrella y los últimos comentarios. */
+function resumirCalificaciones_(lista) {
+  const total = lista.length;
+  const dist = [0, 0, 0, 0, 0];
+  let suma = 0;
+  lista.forEach(c => { suma += c.estrellas; dist[c.estrellas - 1]++; });
+  return {
+    total: total,
+    promedio: total ? Math.round(suma / total * 10) / 10 : 0,
+    distribucion: dist.reverse(), // [5★, 4★, 3★, 2★, 1★]
+    ultimas: lista.slice().sort((a, b) => b.registradoMs - a.registradoMs).slice(0, 8)
+  };
 }

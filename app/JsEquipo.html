@@ -118,6 +118,42 @@
         return b;
       }
 
+      /* ---------- Enlace de seguimiento para el cliente ---------- */
+      var dlgSeg = $('#dlg-seguimiento');
+      var SEG = { seq: 0 };
+      /** `recien`: se abre solo al guardar un pedido nuevo, para crear la costumbre de mandarlo. */
+      function abrirSeguimiento(p, recien) {
+        var mi = ++SEG.seq;
+        $('#seg-titulo').textContent = recien ? 'Pedido guardado. ¿Le mandas el seguimiento?' : 'Seguimiento para el cliente';
+        $('#seg-cerrar').textContent = recien ? 'Ahora no' : 'Cerrar';
+        $('#seg-cargando').hidden = false;
+        $('#seg-listo').hidden = true;
+        $('#seg-error').style.display = 'none';
+        if (!dlgSeg.open) dlgSeg.showModal();
+        api('enlaceSeguimiento', [p.id]).then(function (r) {
+          if (mi !== SEG.seq) return;
+          $('#seg-cargando').hidden = true;
+          if (!r || !r.ok) { var e = $('#seg-error'); e.textContent = (r && r.error) || 'No se pudo preparar el enlace.'; e.style.display = 'block'; return; }
+          $('#seg-enlace').value = r.url;
+          $('#seg-wa').href = 'https://wa.me/?text=' + encodeURIComponent(r.texto);
+          $('#seg-listo').hidden = false;
+        }).catch(function (e) {
+          if (mi !== SEG.seq || (e && e.message === 'sesion')) return;
+          $('#seg-cargando').hidden = true;
+          var m = $('#seg-error'); m.textContent = 'No se pudo conectar. Revisa tu conexión.'; m.style.display = 'block';
+        });
+      }
+      $('#seg-cerrar').addEventListener('click', function () { dlgSeg.close(); });
+      $('#seg-wa').addEventListener('click', function () { setTimeout(function () { dlgSeg.close(); }, 300); });
+      $('#seg-copiar').addEventListener('click', function () {
+        var i = $('#seg-enlace');
+        i.select();
+        var listo = function () { toast('Enlace copiado. Pégalo en el chat del cliente.'); };
+        var aMano = function () { try { document.execCommand('copy'); listo(); } catch (e) { /* lo copia a mano: el texto queda seleccionado */ } };
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(i.value).then(listo, aMano);
+        else aMano();
+      });
+
       /** Cambia el estado de un pedido y refresca todo con la respuesta del servidor. */
       function accion(p, nombre, datos, b, textoOk) {
         var original = b ? b.textContent : '';
@@ -358,6 +394,7 @@
         } else if (p.estado !== 'Entregado' && p.estado !== 'Cancelado') {
           c.appendChild(el('p', 'tarea-rastro', 'Ya está en curso: no se puede editar ni cancelar. Si hay un problema, habla con la administradora.'));
         }
+        if (p.estado !== 'Cancelado') ac.appendChild(boton('Enviar seguimiento', 'deshacer', function () { abrirSeguimiento(p, false); }));
         if (p.conEvidencia) {
           ac.appendChild(boton('Ver foto de entrega', 'deshacer', function () { verEvidencia(p); }));
         }

@@ -23,13 +23,13 @@ function iniciarSesion(usuario, clave) {
   cache.remove(llave);
   const { hoja, m } = abrirUsuarios_();
   hoja.getRange(u.fila, m['Último ingreso']).setValue(new Date());
-  return { ok: true, token: crearToken_(u), usuario: u.usuario, nombre: u.nombre, roles: u.roles, config: configPara_(u) };
+  return { ok: true, token: crearToken_(u), usuario: u.usuario, nombre: u.nombre, roles: u.roles, sexo: u.sexo, config: configPara_(u) };
 }
 
 function getSesion(token) {
   const u = sesion_(token);
   if (!u) return { ok: false, sesion: false };
-  return { ok: true, usuario: u.usuario, nombre: u.nombre, roles: u.roles, config: configPara_(u) };
+  return { ok: true, usuario: u.usuario, nombre: u.nombre, roles: u.roles, sexo: u.sexo, config: configPara_(u) };
 }
 
 /** Máximo de acciones por persona y hora. Si la caché falla, no se bloquea a nadie. */
@@ -56,7 +56,8 @@ function etiquetasRoles_() {
   try {
     const T = leerConfig_().terminos;
     [['Vendedora', T.vende], ['Decorador', T.prepara], ['Entregador', T.entrega], ['Administrador', T.admin]].forEach(par => {
-      String(par[1]).split(',').forEach(x => {
+      const formas = formasCargo_(par[1]);
+      String(par[1]).split(',').concat([formas.m, formas.f]).forEach(x => {
         const n = norm_(x.replace(/\((f|m)\)\s*$/i, ''));
         if (n.length >= 3) out.push([n, par[0]]);
       });
@@ -102,7 +103,8 @@ function leerUsuarios_() {
         roles: parseRoles_(g(f, 'Rol')),
         clave: limpiar_(g(f, 'Clave')),
         activo: esSi_(g(f, 'Activo')),
-        ingreso: g(f, 'Último ingreso') instanceof Date ? g(f, 'Último ingreso').getTime() : 0
+        ingreso: g(f, 'Último ingreso') instanceof Date ? g(f, 'Último ingreso').getTime() : 0,
+        sexo: m['Sexo'] ? sexoDe_(g(f, 'Sexo')) : ''
       });
     });
   }

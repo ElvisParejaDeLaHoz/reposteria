@@ -162,6 +162,43 @@
         mostrarVistaAdmin();
       }
 
+      /** Lo que dicen los clientes en la página de seguimiento. */
+      function panelCalificaciones(c) {
+        var p = panel('Lo que dicen tus clientes', plural(c.total, 'calificación', 'calificaciones') + ' en total.');
+        var top = el('div', 'calif-top');
+        var r = Math.round(c.promedio);
+        top.appendChild(el('b', 'calif-prom', String(c.promedio).replace('.', ',')));
+        top.appendChild(el('span', 'calif-estrellas', '★★★★★'.slice(0, r) + '☆☆☆☆☆'.slice(0, 5 - r)));
+        p.appendChild(top);
+        var ul = el('ul', 'barras');
+        c.distribucion.forEach(function (n, i) {
+          var li = el('li', 'barra-fila');
+          var t = el('div', 'barra-txt');
+          t.appendChild(el('span', null, (5 - i) + ' ★'));
+          t.appendChild(el('span', null, String(n)));
+          li.appendChild(t);
+          var pista = el('div', 'barra-pista'), b = el('i');
+          b.style.width = (c.total ? Math.round(n / c.total * 100) : 0) + '%';
+          pista.appendChild(b);
+          li.appendChild(pista);
+          ul.appendChild(li);
+        });
+        p.appendChild(ul);
+        var con = c.ultimas.filter(function (x) { return x.comentario; });
+        if (con.length) {
+          var lista = el('ul', 'calif-lista');
+          con.slice(0, 5).forEach(function (x) {
+            var li = el('li');
+            li.appendChild(el('span', 'calif-estrellas', '★★★★★'.slice(0, x.estrellas)));
+            li.appendChild(libre(el('p', null, '“' + x.comentario + '”')));
+            li.appendChild(libre(el('small', null, (x.cliente || 'Cliente') + (x.registradoMs ? ' · ' + new Date(x.registradoMs).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : ''))));
+            lista.appendChild(li);
+          });
+          p.appendChild(lista);
+        }
+        return p;
+      }
+
       function renderAdminResumen() {
         var d = ADM.datos, t = d.totales, c = $('#adm-resumen');
         c.textContent = '';
@@ -183,15 +220,16 @@
         if (d.porMedio.length) g.appendChild(panelBarras('Por medio de venta', d.porMedio));
         if (d.porEntrega.length) g.appendChild(panelBarras('Domicilio y local', d.porEntrega));
         if (d.porVendedora.length) {
-          g.appendChild(panelRanking('Top vendedoras', 'Quién vendió más en el periodo.', d.porVendedora.map(function (v) {
+          g.appendChild(panelRanking('Quién vendió más', 'Ventas de cada persona del equipo en el periodo.', d.porVendedora.map(function (v) {
             return { nombre: v.k, valor: v.total, sub: plural(v.n, 'pedido', 'pedidos') + (v.cancelados ? ' · ' + plural(v.cancelados, 'cancelado', 'cancelados') : '') };
           })));
         }
         if (d.top.length) {
           g.appendChild(panelRanking('Pedidos más altos', 'Los arreglos de mayor valor.', d.top.map(function (p) {
-            return { nombre: p.para + ' (pidió ' + p.cliente + ')', valor: p.total, sub: 'Vendido el ' + fmtFecha(p.dia) + ' · ' + (p.vendedora || 'sin vendedora') };
+            return { nombre: p.para + ' (pidió ' + p.cliente + ')', valor: p.total, sub: 'Vendido el ' + fmtFecha(p.dia) + ' · ' + (p.vendedora || 'sin registrar quién vendió') };
           })));
         }
+        if (d.calificaciones && d.calificaciones.total) g.appendChild(panelCalificaciones(d.calificaciones));
         var eq = d.equipo, tiene = eq.decoradores.length || eq.entregadores.length;
         if (tiene) {
           var pe = panel('Trabajo del equipo', 'Pedidos terminados o entregados en el periodo y tiempo promedio.');
@@ -276,6 +314,12 @@
           bp.type = 'button';
           bp.addEventListener('click', function () { abrirAbono(p); });
           ac.appendChild(bp);
+        }
+        if (p.estado !== 'Cancelado') {
+          var bs = el('button', 'tarea-btn deshacer', 'Enviar seguimiento');
+          bs.type = 'button';
+          bs.addEventListener('click', function () { abrirSeguimiento(p, false); });
+          ac.appendChild(bs);
         }
         if (p.estado !== 'Entregado' && p.estado !== 'Cancelado') {
           var bc = el('button', 'tarea-btn peligro', 'Cancelar pedido');

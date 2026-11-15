@@ -4,7 +4,7 @@
   <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Pedidos de arreglos</title>
+  <title>Mis pedidos</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,14 +12,18 @@
 </head>
 <body>
 
-  <div class="cargando" id="cargando" role="status">Cargando…</div>
+  <div class="cargando" id="cargando" role="status" aria-live="polite">
+    <span class="girando grande" aria-hidden="true"></span>
+    <p id="cargando-txt">Cargando…</p>
+  </div>
+  <div class="barra-carga" id="barra-carga" aria-hidden="true"></div>
 
   <!-- ===== Entrada ===== -->
   <div class="entrada" id="login" hidden>
     <div class="tag-wrap">
       <form class="tag" id="form-login" novalidate>
         <img class="logo-login" id="logo-login" alt="Logo de la floristería" hidden>
-        <h1 id="login-nombre" data-dato>Pedidos de arreglos</h1>
+        <h1 id="login-nombre" data-dato>Mis pedidos</h1>
         <p class="lema" id="login-lema" data-dato hidden></p>
         <p class="sub">Entra con tu usuario y tu clave.</p>
         <p class="error-form" id="login-error" role="alert" hidden></p>
@@ -50,7 +54,7 @@
         <p class="bv-pasos" id="bv-pasos" aria-live="polite"></p>
 
         <form class="bv-paso" id="bv-0" novalidate>
-          <h1>Bienvenida</h1>
+          <h1>Te damos la bienvenida</h1>
           <p class="sub">Vamos a dejar tu app lista en 3 pasos. Escribe el código de activación que te dio Elka.</p>
           <div class="campo">
             <label class="etq" for="bv-codigo">Código de activación</label>
@@ -73,7 +77,9 @@
             <div class="campo">
               <label class="etq" for="bv-producto">¿Qué vendes? (en singular)</label>
               <input class="ctl" id="bv-producto" type="text" maxlength="40" placeholder="Ej. torta, ramo, almuerzo">
-              <p class="ayuda">La app lo usa en todas partes: "Nueva torta", "Tortas de hoy"…</p>
+              <label class="check"><input type="checkbox" id="bv-producto-f"> <span>Es palabra femenina (la torta, una dona)</span></label>
+              <p class="previa-producto" id="bv-producto-previa" aria-live="polite"></p>
+              <p class="ayuda">Si vendes varias cosas, usa una palabra que las abarque: postre, producto, pedido. Si el plural no termina en "s", escríbelo después de una coma: "pan, panes".</p>
             </div>
             <fieldset class="campo">
               <legend class="etq">Tu color</legend>
@@ -102,6 +108,14 @@
               <label class="etq" for="bv-nombre">Tu nombre</label>
               <input class="ctl" id="bv-nombre" type="text" maxlength="60" autocapitalize="words" autocomplete="name" placeholder="Ej. Keila Cabarcas">
             </div>
+            <fieldset class="campo" id="bv-bloque-sexo">
+              <legend class="etq">Sexo</legend>
+              <div class="seg">
+                <label><input type="radio" name="bv-sexo" value="Mujer"><span>Mujer</span></label>
+                <label><input type="radio" name="bv-sexo" value="Hombre"><span>Hombre</span></label>
+              </div>
+              <p class="ayuda">Para escribir bien tu cargo: Administradora o Administrador.</p>
+            </fieldset>
             <div class="campo">
               <label class="etq" for="bv-usuario">Usuario para entrar</label>
               <input class="ctl" id="bv-usuario" type="text" maxlength="30" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" placeholder="Ej. keila">
@@ -118,8 +132,8 @@
                 <input class="ctl" id="bv-clave2" type="password" autocomplete="new-password">
               </div>
             </div>
-            <label class="check"><input type="checkbox" id="bv-todo" checked> <span>Yo misma tomo, preparo y entrego los pedidos</span></label>
-            <p class="ayuda">Déjalo marcado si trabajas sola o haces de todo. Si tienes equipo, después lo agregas en Ajustes.</p>
+            <label class="check"><input type="checkbox" id="bv-todo" checked> <span>Yo tomo, preparo y entrego los pedidos</span></label>
+            <p class="ayuda">Déjalo marcado si trabajas por tu cuenta o haces de todo. Si tienes equipo, después lo agregas en Ajustes.</p>
           </div>
           <div class="bv-botones">
             <button class="btn-sec bv-atras" type="button">Atrás</button>
@@ -136,7 +150,7 @@
           <div class="campo">
             <label class="etq" for="bv-sueldo">¿Cuánto quieres ganarte al mes?</label>
             <div class="dinero"><b>$</b><input class="ctl" id="bv-sueldo" type="text" inputmode="numeric" placeholder="0"></div>
-            <p class="ayuda">Tu sueldo como dueña. Solo lo ves tú.</p>
+            <p class="ayuda">Lo que quieres ganarte tú. Solo lo ves tú.</p>
           </div>
           <div class="bv-botones">
             <button class="btn-sec bv-atras" type="button">Atrás</button>
@@ -346,7 +360,7 @@
             <legend class="sr-only">De quién son los pedidos</legend>
             <div class="seg">
               <label><input type="radio" name="seg-quien" value="mios" checked><span>Los míos</span></label>
-              <label><input type="radio" name="seg-quien" value="todos"><span>De todas</span></label>
+              <label><input type="radio" name="seg-quien" value="todos"><span>Del equipo</span></label>
             </div>
           </fieldset>
           <fieldset class="campo">
@@ -489,6 +503,24 @@
     </main>
   </div>
 
+  <!-- Enlace de seguimiento para el cliente -->
+  <dialog id="dlg-seguimiento" aria-labelledby="seg-titulo">
+    <div class="dlg">
+      <h2 id="seg-titulo">Seguimiento para el cliente</h2>
+      <p class="ayuda" id="seg-ayuda">Mándale este enlace a quien hizo el pedido. Ahí ve cómo va, y cuando lo reciba puede calificarte y recomendarte.</p>
+      <p class="seg-cargando" id="seg-cargando">Preparando el enlace…</p>
+      <div id="seg-listo" hidden>
+        <input class="ctl" id="seg-enlace" type="text" readonly aria-label="Enlace de seguimiento">
+        <div class="seg-botones">
+          <a class="guardar" id="seg-wa" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+          <button class="btn-sec" id="seg-copiar" type="button">Copiar enlace</button>
+        </div>
+      </div>
+      <p class="msg" id="seg-error" style="display:none"></p>
+      <button class="btn-sec" id="seg-cerrar" type="button">Cerrar</button>
+    </div>
+  </dialog>
+
   <!-- Crear o cambiar una persona del equipo (Ajustes) -->
   <dialog id="dlg-usuario" aria-labelledby="usr-titulo">
     <form class="dlg" id="form-usuario" method="dialog" novalidate>
@@ -497,6 +529,14 @@
         <label class="etq" for="usr-nombre">Nombre</label>
         <input class="ctl" id="usr-nombre" type="text" maxlength="60" autocapitalize="words" placeholder="Ej. Ana Rojas">
       </div>
+      <fieldset class="campo" id="usr-bloque-sexo">
+        <legend class="etq">Sexo</legend>
+        <div class="seg">
+          <label><input type="radio" name="usr-sexo" value="Mujer"><span>Mujer</span></label>
+          <label><input type="radio" name="usr-sexo" value="Hombre"><span>Hombre</span></label>
+        </div>
+        <p class="ayuda" id="usr-sexo-ayuda">Para escribir bien su cargo: Vendedora o Vendedor.</p>
+      </fieldset>
       <div class="campo" id="usr-bloque-usuario">
         <label class="etq" for="usr-usuario">Usuario para entrar</label>
         <input class="ctl" id="usr-usuario" type="text" maxlength="30" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="Ej. ana">

@@ -1,12 +1,12 @@
 <img src="docs/marca/archivos/elka-logo.svg" alt="Elka" height="56">
 
-# Elka · Pedidos y finanzas para emprendedoras
+# Elka · Pedidos y finanzas para emprendedoras y emprendedores
 
 *Ordenamos tu negocio, acompañamos tu crecimiento.*
 
 App gratuita para negocios pequeños que toman pedidos, los preparan y los entregan (en el local o a domicilio), y que quieren ordenar sus finanzas. Funciona sobre Google Sheets y Google Apps Script: no hay servidores que pagar. El código es libre; Elka ofrece la instalación, el mantenimiento y el acompañamiento.
 
-**Qué incluye:** pedidos por turnos, preparación y entrega con foto · abonos y saldo por pedido · costo de materiales · gastos fijos y variables · retiros de la dueña · **punto de equilibrio** y meta de sueldo · cuentas por cobrar con recordatorio por WhatsApp · cierre de caja diario · ventas por medio, pago y vendedora.
+**Qué incluye:** pedidos por turnos, preparación y entrega con foto · abonos y saldo por pedido · costo de materiales · gastos fijos y variables · lo que se paga quien es dueño del negocio · **punto de equilibrio** y meta de sueldo · cuentas por cobrar con recordatorio por WhatsApp · cierre de caja diario · ventas por medio, pago y por quién vendió.
 
 **Tipos de negocio con plantilla:** floristería, pastelería, óptica, restaurante, detalles y desayunos sorpresa, y uno genérico (`node herramientas/flota.mjs giros`).
 
@@ -34,19 +34,21 @@ App gratuita para negocios pequeños que toman pedidos, los preparan y los entre
 ## Instalar un negocio nuevo
 
 ```bash
-node herramientas/flota.mjs instalar floristeria-rosa --nombre "Floristería Rosa" --giro floristeria --correo dueña@gmail.com
+node herramientas/flota.mjs instalar floristeria-rosa --nombre "Floristería Rosa" --giro floristeria --correo negocio@gmail.com
 ```
 
 La herramienta crea la hoja y el proyecto, sube el código, publica la app, guarda los ids en el registro y genera `docs/floristeria-rosa/`. Después quedan 3 pasos a mano, que la misma herramienta muestra:
 
-1. Abrir el editor, ejecutar `configuracionInicial` y aceptar los permisos. Google mostrará *"Google no ha verificado esta app"*: se sigue por *Configuración avanzada → Ir a…*. Al terminar, el registro muestra el **código de activación** (por ejemplo `K7QM-3XPA`).
+1. Abrir el editor, ejecutar `configuracionInicial` y aceptar los permisos. Google mostrará *"Google no ha verificado esta app"*: se sigue por *Configuración avanzada → Ir a…*. Al terminar, el registro muestra el **código de activación** (por ejemplo `K7QM-3XPA`). Ahí mismo queda programada la **copia de seguridad diaria** (carpeta "Copias de seguridad" en Drive, últimas 14).
 2. Subir `docs/` a GitHub.
-3. Mandarle a la dueña el enlace con el código: `https://<usuario>.github.io/<repo>/floristeria-rosa/?activar=K7QM-3XPA`.
+3. Mandarle al dueño o la dueña el enlace con el código: `https://<usuario>.github.io/<repo>/floristeria-rosa/?activar=K7QM-3XPA`.
 
-La dueña abre el enlace y en 3 pasos pone el nombre del negocio, qué vende, su color y logo, su usuario y clave, y sus gastos fijos. El código sirve una sola vez. **No hace falta compartirle la hoja**: el equipo, los datos del negocio y el logo los cambia ella en **Ajustes** (enlace en la cabecera). La hoja queda para soporte. Después puede agregar la app a la pantalla de inicio del celular.
+La persona dueña abre el enlace y en 3 pasos pone el nombre del negocio, qué vende (con un ejemplo en vivo de cómo se verá), su color y logo, su nombre, sexo, usuario y clave, y sus gastos fijos. Con el sexo de cada persona la app escribe bien su cargo (Vendedora o Vendedor). El código sirve una sola vez. **No hace falta compartirle la hoja**: el equipo, los datos del negocio y el logo los cambia desde la app en **Ajustes** (enlace en la cabecera). La hoja queda para soporte. Después puede agregar la app a la pantalla de inicio del celular.
+
+**Seguimiento para el cliente.** Al guardar un pedido, la app ofrece mandarle al cliente su enlace (`…/<id>/pedido/?c=<código>`). Ahí ve cómo va su pedido. Cuando lo recibe, puede calificarlo y compartir una tarjeta con la foto en su estado de WhatsApp. La página solo muestra el estado y las horas: nada de teléfonos, direcciones ni valores. El estado se guarda en memoria 5 minutos; si hay mucho tráfico, el cliente ve un mensaje amable y la página reintenta sola. Las calificaciones quedan en la hoja **Calificaciones** y en **Ventas**. Para que el cliente pueda volver a pedir, el negocio pone el WhatsApp del negocio en **Ajustes**.
 
 - Si se pierde el código: en el editor, ejecutar `verCodigoActivacion`.
-- Si la dueña olvida su clave: escribir una clave nueva, sin cifrar, en su fila de la hoja **Usuarios**. Al entrar con ella se cifra sola.
+- Si alguien olvida su clave: escribir una clave nueva, sin cifrar, en su fila de la hoja **Usuarios**. Al entrar con ella se cifra sola.
 - Los avisos por Telegram siguen en la hoja **Configuración** (son de soporte).
 
 ## Publicar una mejora para todos
@@ -60,6 +62,8 @@ node herramientas/flota.mjs actualizar --todos --nota "Gastos y cierre de caja"
 ```
 
 Cada proyecto recibe el código nuevo y se actualiza **la misma** publicación, así que la dirección de la app no cambia. Si un negocio falla, los demás siguen y al final sale el resumen.
+
+La versión publicada se ve al pie de **Ajustes** en la app de cada negocio. `VERSION`, `package.json` y `VERSION_APP` (en `00_Config.gs`) deben coincidir: las pruebas lo revisan.
 
 Otros comandos: `listar` (quién está en qué versión), `actualizar <id>` (uno solo) y `paginas` (regenerar `docs/`).
 

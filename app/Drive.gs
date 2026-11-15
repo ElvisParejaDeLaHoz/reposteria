@@ -24,10 +24,15 @@ function copiaDiaria() {
 /** Ejecútala UNA vez desde el editor: programa la copia diaria (entre 2 y 3 de la mañana) y hace la primera copia ahora. */
 function activarCopiaDiaria() {
   soloDueno_();
-  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'copiaDiaria') ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('copiaDiaria').timeBased().everyDays(1).atHour(2).create();
+  programarCopiaDiaria_();
   copiaDiaria();
   Logger.log('Listo: se hará una copia cada noche en la carpeta "Copias de seguridad" de tu Drive (se guardan las últimas ' + DIAS_COPIAS + ').');
+}
+
+/** Deja un solo disparador de la copia diaria (entre 2 y 3 de la mañana). configuracionInicial lo llama al instalar. */
+function programarCopiaDiaria_() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'copiaDiaria') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('copiaDiaria').timeBased().everyDays(1).atHour(2).create();
 }
 
 function carpetaLogo_(crear) {

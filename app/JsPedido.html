@@ -305,6 +305,7 @@
           refrescarTablero(true);
           toast('Pedido guardado. Quedó en el turno ' + r.turno + ' del ' + fmtFecha(fecha) + '.');
           window.scrollTo({ top: 0, behavior: 'smooth' });
+          abrirSeguimiento({ id: r.id }, true);
         }).catch(function (err) {
           terminar();
           if (err && err.message !== 'sesion') toast('No se pudo guardar el pedido. Revisa tu conexión e inténtalo de nuevo.', true);

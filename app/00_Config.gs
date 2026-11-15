@@ -12,7 +12,12 @@
  * en orden y una constante no puede usar otra que todavía no existe.
  */
 
-const NOMBRE_LIBRO = 'Pedidos de arreglos';
+/* Versión del código: debe ser igual al archivo VERSION (lo revisan las pruebas). Se ve en Ajustes. */
+const VERSION_APP = '2.1.0';
+
+const NOMBRE_LIBRO = 'Mis pedidos';
+/* Nombres de fábrica (actual y de versiones anteriores): no cuentan como nombre del negocio. */
+const NOMBRES_DE_FABRICA = ['Mis pedidos', 'Pedidos de arreglos'];
 
 const HOJA_PEDIDOS = 'Pedidos';
 
@@ -40,7 +45,7 @@ const HOJA_CONFIG = 'Configuración';
 
 /* Valores de fábrica; se cambian desde la hoja "Configuración". */
 const CONFIG_DEF = {
-  nombre: 'Pedidos de arreglos',
+  nombre: 'Mis pedidos',
   lema: 'Registra, arma y entrega cada pedido a tiempo.',
   principal: '#C0245E',
   secundario: '#17382C',
@@ -56,21 +61,25 @@ const CONFIG_DEF = {
   minDesc: 20,
   categorias: ['Insumos y materiales', 'Empaques', 'Transporte', 'Publicidad', 'Arriendo', 'Servicios públicos',
     'Internet y teléfono', 'Nómina', 'Mantenimiento', 'Impuestos', 'Otros'],
-  sueldo: 0
+  sueldo: 0,
+  whatsapp: ''
 };
 
 const ESTADOS = ['Pendiente', 'En preparación', 'Listo', 'En camino', 'Entregado', 'Cancelado'];
 
 const COLUMNAS = [
   'ID', 'Registrado', 'Vendedora', 'Medio de venta', 'Cliente', 'Para quién',
-  'Descripción del arreglo', 'Entrega', 'Método de pago', 'Dirección', 'Teléfono',
+  'Descripción del pedido', 'Entrega', 'Método de pago', 'Dirección', 'Teléfono',
   'Fecha entrega', 'Hora entrega', 'Valor producto', 'Valor domicilio', 'Total',
   'Dedicatoria', 'Texto dedicatoria', 'Estado', 'Decorador', 'Inicio preparación',
   'Listo el', 'Entregó', 'Salió el', 'Entregado el', 'Recibió', 'Evidencia',
-  'Cancelación', 'Editado el', 'Editó', 'Abonado', 'Costo'
+  'Cancelación', 'Editado el', 'Editó', 'Abonado', 'Costo', 'Seguimiento'
 ];
 
-const COLUMNAS_USUARIOS = ['Usuario', 'Nombre', 'Rol', 'Clave', 'Activo', 'Último ingreso'];
+const COLUMNAS_USUARIOS = ['Usuario', 'Nombre', 'Rol', 'Clave', 'Activo', 'Último ingreso', 'Sexo'];
+
+/* Sexo de cada persona del equipo: solo sirve para escribir bien su cargo (Vendedora o Vendedor). */
+const SEXOS = ['Mujer', 'Hombre'];
 
 const ROLES_APP = ['Vendedora', 'Decorador', 'Entregador', 'Administrador'];
 
@@ -87,8 +96,19 @@ const MIN_CLAVE = 6;
 const ETIQUETAS_NEGOCIO = {
   nombre: 'Nombre del negocio', lema: 'Frase de bienvenida', principal: 'Color principal', secundario: 'Color secundario',
   producto: 'Nombre del producto', medios: 'Medios de venta', pagos: 'Métodos de pago',
-  categorias: 'Categorías de gastos', minDesc: 'Mínimo de letras en la descripción'
+  categorias: 'Categorías de gastos', minDesc: 'Mínimo de letras en la descripción', whatsapp: 'WhatsApp del negocio'
 };
+
+/* Seguimiento del pedido para el cliente: página pública con estado, calificación y "recomiéndame". */
+const HOJA_CALIF = 'Calificaciones';
+
+const COLUMNAS_CALIF = ['Pedido', 'Cliente', 'Estrellas', 'Comentario', 'Fecha', 'Registrado'];
+
+const SEG_MEMORIA = 300; // segundos que se guarda en memoria el estado de un pedido (5 minutos)
+
+const LIMITE_SEGUIMIENTO_MIN = 120; // consultas por minuto que llegan a la hoja; por encima, "estamos a toda máquina"
+
+const DIAS_SEGUIMIENTO = 30; // días después de entregado (o cancelado) en que el enlace sigue funcionando
 
 const FILAS_CONFIG = [
   ['Nombre del negocio', CONFIG_DEF.nombre, 'Sale en la pantalla de entrada y en la pestaña del navegador.'],
@@ -103,12 +123,13 @@ const FILAS_CONFIG = [
   ['Rol: quien vende', CONFIG_DEF.terminos.vende, 'Nombre de quien toma los pedidos. En la hoja Usuarios puedes escribir este nombre o el original, ambos funcionan.'],
   ['Rol: quien prepara', CONFIG_DEF.terminos.prepara, 'Nombre de quien arma o produce el pedido (decorador, costurera, cocinero…).'],
   ['Rol: quien entrega', CONFIG_DEF.terminos.entrega, 'Nombre de quien lleva el pedido (entregador, domiciliario, repartidor…).'],
-  ['Rol: quien administra', CONFIG_DEF.terminos.admin, 'Nombre de quien ve las ventas y la contabilidad (administrador, dueña, gerente…).'],
+  ['Rol: quien administra', CONFIG_DEF.terminos.admin, 'Nombre de quien ve las ventas y la contabilidad (administrador, dueño, gerente…).'],
   ['Ejemplo de descripción', CONFIG_DEF.terminos.ejemplo, 'Texto gris de ejemplo en el formulario de pedido.'],
   ['Qué incluir en la descripción', CONFIG_DEF.terminos.pista, 'Recordatorio bajo la descripción del pedido.'],
   ['Mínimo de letras en la descripción', String(CONFIG_DEF.minDesc), 'Cuántas letras pide como mínimo la descripción del pedido. En un restaurante, 3 basta ("1 corriente").'],
   ['Categorías de gastos', CONFIG_DEF.categorias.join(', '), 'En qué se va la plata. Sepáralas con comas (máximo 30). Sirven para ver en Finanzas dónde se gasta más.'],
-  ['Sueldo que quiero ganarme', String(CONFIG_DEF.sueldo), 'Cuánto quieres ganarte al mes como dueña. Con esto, Finanzas te dice cuánto vender para pagar todo y además tu sueldo. También se cambia desde la app.'],
+  ['WhatsApp del negocio', '', 'Número con el que te escriben los clientes (ej. 3001234567). Sale en la página de seguimiento del pedido para que te vuelvan a pedir y te recomienden.'],
+  ['Sueldo que quiero ganarme', String(CONFIG_DEF.sueldo), 'Cuánto quieres ganarte tú al mes. Con esto, Finanzas te dice cuánto vender para pagar todo y además tu sueldo. También se cambia desde la app.'],
   ['Telegram: activo', 'No', 'Escribe Sí para mandar avisos por Telegram. Pasos: 1) En Telegram abre @BotFather, escribe /newbot y copia el token. 2) Crea un grupo, agrega el bot y a tu equipo (o usa chats personales). 3) Pega el token y los números de chat aquí abajo. 4) En el editor de Apps Script ejecuta buscarChatsTelegram para ver los números y probarTelegram para probar.'],
   ['Telegram: token del bot', '', 'El token que te da @BotFather. No compartas esta hoja con nadie más.'],
   ['Telegram: chats de quien vende', '', 'Números de chat (separados por comas) que reciben avisos de pedidos listos, en camino, entregados y cancelados. Un grupo tiene número negativo, como -1001234567890.'],
@@ -188,10 +209,10 @@ const COLOR_ESTADO = {
 
 const ANCHOS = {
   'ID': 150, 'Registrado': 140, 'Vendedora': 130, 'Medio de venta': 120, 'Cliente': 150,
-  'Para quién': 150, 'Descripción del arreglo': 380, 'Entrega': 100, 'Método de pago': 120,
+  'Para quién': 150, 'Descripción del pedido': 380, 'Entrega': 100, 'Método de pago': 120,
   'Dirección': 240, 'Fecha entrega': 110, 'Hora entrega': 90, 'Valor producto': 120,
   'Valor domicilio': 120, 'Total': 110, 'Dedicatoria': 100, 'Texto dedicatoria': 280,
   'Estado': 130, 'Decorador': 120, 'Inicio preparación': 140, 'Listo el': 140, 'Entregó': 120,
   'Salió el': 140, 'Entregado el': 140, 'Recibió': 140, 'Evidencia': 260,
-  'Teléfono': 120, 'Cancelación': 260, 'Editado el': 140, 'Editó': 120, 'Abonado': 110, 'Costo': 110
+  'Teléfono': 120, 'Cancelación': 260, 'Editado el': 140, 'Editó': 120, 'Abonado': 110, 'Costo': 110, 'Seguimiento': 130
 };

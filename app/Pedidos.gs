@@ -38,7 +38,7 @@ function guardarPedido(token, p) {
     const sufijo = Math.random().toString(36).slice(2, 4).toUpperCase();
     const id = 'P-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd-HHmmss') + '-' + sufijo;
     const datos = Object.assign(
-      { 'ID': id, 'Registrado': new Date(), 'Vendedora': u.nombre, 'Estado': 'Pendiente' },
+      { 'ID': id, 'Registrado': new Date(), 'Vendedora': u.nombre, 'Estado': 'Pendiente', 'Seguimiento': nuevoCodigoSeguimiento_() },
       camposPedido_(p));
     // "Ya pagado" sin abono escrito quiere decir que pagó todo.
     let abono = Math.round(Number(p.abono) || 0);
@@ -75,7 +75,7 @@ function camposPedido_(p) {
     'Medio de venta': p.medio,
     'Cliente': seguro_(p.cliente, TOPES.cliente),
     'Para quién': seguro_(p.para, TOPES.para),
-    'Descripción del arreglo': seguro_(p.descripcion, TOPES.descripcion),
+    'Descripción del pedido': seguro_(p.descripcion, TOPES.descripcion),
     'Entrega': p.entrega,
     'Método de pago': p.pago,
     'Dirección': esDomicilio ? seguro_(p.direccion, TOPES.direccion) : '—',
@@ -129,6 +129,7 @@ function editarPedido(token, id, p) {
         res = { ok: true };
         avisar_('editado', { id: actual.id, fecha: p.fecha, hora: p.hora }, {});
         marcarCambio_();
+        olvidarSeguimiento_(actual.seguimiento);
       }
     }
   } finally {
@@ -161,7 +162,7 @@ function cambiarEstado(token, id, accion, datos) {
     const p = filas.find(x => x.id === String(id));
     res = p ? aplicarAccion_(u, hoja, m, p, accion, datos)
             : fallo_('No se encontró el pedido. Actualiza la lista.', true);
-    if (res.ok) { avisoAccion_(u, p, accion, datos); marcarCambio_(); }
+    if (res.ok) { avisoAccion_(u, p, accion, datos); marcarCambio_(); olvidarSeguimiento_(p.seguimiento); }
   } finally {
     lock.releaseLock();
   }

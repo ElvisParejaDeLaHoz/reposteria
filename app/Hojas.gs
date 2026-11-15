@@ -105,7 +105,7 @@ function leerPedidos_() {
         medio: limpiar_(g(f, 'Medio de venta')),
         cliente: limpiar_(g(f, 'Cliente')),
         para: limpiar_(g(f, 'Para quién')),
-        descripcion: limpiar_(g(f, 'Descripción del arreglo')),
+        descripcion: limpiar_(g(f, 'Descripción del pedido')),
         entrega: limpiar_(g(f, 'Entrega')),
         pago: limpiar_(g(f, 'Método de pago')),
         direccion: limpiar_(g(f, 'Dirección')),
@@ -133,7 +133,8 @@ function leerPedidos_() {
         inicioPrepMs: ms_(g(f, 'Inicio preparación')),
         listoMs: ms_(g(f, 'Listo el')),
         salioMs: ms_(g(f, 'Salió el')),
-        entregadoMs: ms_(g(f, 'Entregado el'))
+        entregadoMs: ms_(g(f, 'Entregado el')),
+        seguimiento: limpiar_(g(f, 'Seguimiento'))
       });
     });
   }
@@ -151,6 +152,10 @@ function prepararPedidos_(ss) {
       hoja = ss.insertSheet(HOJA_PEDIDOS);
     }
   }
+
+  // Las hojas de antes llamaban "Descripción del arreglo" a la descripción: se renombra en su sitio, sin mover datos.
+  const viejas = mapa_(hoja);
+  if (viejas['Descripción del arreglo'] && !viejas['Descripción del pedido']) hoja.getRange(1, viejas['Descripción del arreglo']).setValue('Descripción del pedido');
 
   // Cabeceras: las que falten se agregan al final, sin mover los datos existentes.
   const m = mapa_(hoja);
@@ -173,7 +178,7 @@ function prepararPedidos_(ss) {
   ['Registrado', 'Inicio preparación', 'Listo el', 'Salió el', 'Entregado el', 'Editado el']
     .forEach(c => col(c).setNumberFormat('dd/mm/yyyy hh:mm'));
   ['Valor producto', 'Valor domicilio', 'Total', 'Abonado', 'Costo'].forEach(c => col(c).setNumberFormat('$#,##0'));
-  col('Descripción del arreglo').setWrap(true);
+  col('Descripción del pedido').setWrap(true);
   col('Texto dedicatoria').setWrap(true);
   Object.keys(ANCHOS).forEach(c => { if (m[c]) hoja.setColumnWidth(m[c], ANCHOS[c]); });
 
@@ -206,16 +211,20 @@ function prepararUsuarios_(ss) {
       ['luis', 'Luis (ejemplo)', 'Decorador', '', 'No'],
       ['pedro', 'Pedro (ejemplo)', 'Entregador', '', 'No']
     ]);
+    hoja.getRange(2, 7, 3, 1).setValues([['Mujer'], ['Hombre'], ['Hombre']]);
   }
   hoja.getRange('D2:D').setNumberFormat('@');
   hoja.getRange(2, 5, Math.max(hoja.getMaxRows() - 1, 1), 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['Sí', 'No'], true).setAllowInvalid(false).build());
   hoja.getRange('F2:F').setNumberFormat('dd/mm/yyyy hh:mm');
-  [130, 180, 220, 300, 90, 150].forEach((w, i) => hoja.setColumnWidth(i + 1, w));
+  hoja.getRange(2, 7, Math.max(hoja.getMaxRows() - 1, 1), 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(SEXOS, true).setAllowInvalid(true).build());
+  [130, 180, 220, 300, 90, 150, 90].forEach((w, i) => hoja.setColumnWidth(i + 1, w));
 
   hoja.getRange('A1').setNote('Nombre para entrar. Sin espacios. No distingue mayúsculas.');
   hoja.getRange('C1').setNote('Vendedora, Decorador o Entregador. Para varios roles sepáralos con coma: Vendedora, Decorador.');
   hoja.getRange('D1').setNote('Escribe la clave de la persona (mínimo 4 caracteres). Cuando entre por primera vez se guarda cifrada. Para cambiarla, borra lo que hay y escribe una nueva.');
+  hoja.getRange('G1').setNote('Mujer u Hombre. Sirve para escribir bien su cargo: Vendedora o Vendedor.');
   hoja.getRange('E1').setNote('Sí deja entrar. No bloquea el acceso al instante, aunque tenga la sesión abierta.');
 
   hoja.getRange('H1').setValue('Cómo manejar los usuarios').setFontWeight('bold');

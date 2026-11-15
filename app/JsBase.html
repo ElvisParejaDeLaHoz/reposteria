@@ -91,10 +91,30 @@
       function guardarToken(t) { try { localStorage.setItem(TOKEN_KEY, t); } catch (e) { /* sin almacenamiento */ } }
       function borrarToken() { try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* sin almacenamiento */ } }
 
+      /* Barra de carga: cuántas llamadas al servidor hay en curso. Las consultas de fondo no la muestran. */
+      var CARGA = { n: 0, t: null };
+      var SIN_BARRA = { getCambio: true, getLogo: true, getConfig: true };
+      function cargaInicio() {
+        if (++CARGA.n === 1) CARGA.t = setTimeout(function () { $('#barra-carga').classList.add('ver'); }, 350);
+      }
+      function cargaFin() {
+        CARGA.n = Math.max(0, CARGA.n - 1);
+        if (!CARGA.n) { clearTimeout(CARGA.t); $('#barra-carga').classList.remove('ver'); }
+      }
+      /* Si la entrada tarda (la primera apertura del día puede demorar), se explica en vez de quedarse quieta. */
+      [[6000, 'Abriendo tu app… La primera vez del día puede tardar unos segundos.'],
+        [16000, 'Está tardando más de lo normal. Revisa tu conexión; seguimos intentando.']].forEach(function (x) {
+        setTimeout(function () { if (!$('#cargando').hidden) $('#cargando-txt').textContent = x[1]; }, x[0]);
+      });
+
       function llamar(fn, args) {
         return new Promise(function (resolve, reject) {
           if (!window.google || !google.script || !google.script.run) { reject(new Error('sin-servidor')); return; }
-          var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+          var conBarra = !SIN_BARRA[fn];
+          if (conBarra) cargaInicio();
+          var r = google.script.run
+            .withSuccessHandler(function (v) { if (conBarra) cargaFin(); resolve(v); })
+            .withFailureHandler(function (e) { if (conBarra) cargaFin(); reject(e); });
           r[fn].apply(r, args || []);
         });
       }
@@ -137,7 +157,7 @@
         $('#ent-previa').removeAttribute('src');
         E.foto = null;
         reiniciarFormulario(true);
-        ['#dlg-entrega', '#dlg-cancelar', '#dlg-abono', '#dlg-mov', '#dlg-foto', '#dlg-usuario'].forEach(function (id) { if ($(id).open) $(id).close(); });
+        ['#dlg-entrega', '#dlg-cancelar', '#dlg-abono', '#dlg-mov', '#dlg-foto', '#dlg-usuario', '#dlg-seguimiento'].forEach(function (id) { if ($(id).open) $(id).close(); });
         FIN.datos = null; FIN.json = ''; FIN.seq++; FIN.mes = ''; FIN.vista = 'resumen'; FIN.cierre = null; FIN.fijosBorrador = null;
         $('#fin-contenido').textContent = '';
         $('input[name="fin-vista"][value="resumen"]').checked = true;
@@ -175,7 +195,7 @@
         $('#cargando').hidden = true;
         $('#app').hidden = false;
         $('#s-nombre').textContent = info.nombre;
-        var rolesTxt = info.roles.map(function (r) { return r.toLowerCase(); });
+        var rolesTxt = info.roles.map(function (r) { return nombreRol(r, info.sexo).toLowerCase(); });
         $('#s-rol').textContent = rolesTxt.length > 1
           ? rolesTxt.slice(0, -1).join(', ') + ' y ' + rolesTxt[rolesTxt.length - 1]
           : rolesTxt[0];

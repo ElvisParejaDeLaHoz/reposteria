@@ -5,7 +5,7 @@ function prepararConfig_(ss) {
   if (!hoja) hoja = ss.insertSheet(HOJA_CONFIG);
   hoja.clear();
   // Si el libro ya tiene el nombre del negocio (lo pone la herramienta de instalación), se usa de una vez.
-  const nombre = ss.getName() !== NOMBRE_LIBRO ? ss.getName().slice(0, 60) : '';
+  const nombre = NOMBRES_DE_FABRICA.indexOf(ss.getName()) < 0 ? ss.getName().slice(0, 60) : '';
   const giro = giroInicial_();
   const filas = [['Ajuste', 'Valor', 'Ayuda']].concat(FILAS_CONFIG.map(f => {
     if (f[0] === 'Nombre del negocio' && nombre) return [f[0], nombre, f[2]];
@@ -82,7 +82,7 @@ function leerConfigHoja_() {
   const cfg = {
     nombre: CONFIG_DEF.nombre, lema: CONFIG_DEF.lema, principal: CONFIG_DEF.principal,
     secundario: CONFIG_DEF.secundario, modo: CONFIG_DEF.modo, terminos: Object.assign({}, CONFIG_DEF.terminos), medios: CONFIG_DEF.medios.slice(), pagos: CONFIG_DEF.pagos.slice(),
-    minDesc: CONFIG_DEF.minDesc, categorias: CONFIG_DEF.categorias.slice(), sueldo: CONFIG_DEF.sueldo
+    minDesc: CONFIG_DEF.minDesc, categorias: CONFIG_DEF.categorias.slice(), sueldo: CONFIG_DEF.sueldo, whatsapp: ''
   };
   const hoja = obtenerLibro_().getSheetByName(HOJA_CONFIG);
   if (!hoja || hoja.getLastRow() < 2) return cfg;
@@ -114,6 +114,9 @@ function leerConfigHoja_() {
   cfg.categorias = lista_(por['categorías de gastos'], cfg.categorias);
   const su = Number(String(por['sueldo que quiero ganarme'] == null ? '' : por['sueldo que quiero ganarme']).replace(/[^\d]/g, ''));
   if (su >= 0 && su <= MAX_VALOR_PRODUCTO) cfg.sueldo = su;
+  const wa = String(por['whatsapp del negocio'] == null ? '' : por['whatsapp del negocio']).replace(/\D/g, '');
+  // Números de Colombia de 10 cifras: se les agrega el 57 para que el enlace de WhatsApp funcione.
+  if (/^\d{7,15}$/.test(wa)) cfg.whatsapp = wa.length === 10 && wa.charAt(0) === '3' ? '57' + wa : wa;
   return cfg;
 }
 
@@ -130,5 +133,6 @@ function getConfig() {
 function configPara_(u) {
   const c = leerConfig_();
   if (u.roles.indexOf('Administrador') < 0) delete c.sueldo;
+  c.cargos = cargosRoles_(c.terminos);
   return c;
 }

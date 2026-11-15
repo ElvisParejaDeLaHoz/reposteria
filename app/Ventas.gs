@@ -78,6 +78,7 @@ function getAdmin(token, desde, hasta, base) {
       decoradores: equipo(validos.filter(p => p.listoMs), p => p.decorador, p => minutos(p.inicioPrepMs, p.listoMs)),
       entregadores: equipo(entregados.filter(p => p.entrega === 'Domicilio'), p => p.entregador, p => minutos(p.salioMs, p.entregadoMs))
     },
+    calificaciones: resumenCalificacionesAdmin_(),
     pedidos: enRango.sort((a, b) => b.registradoMs - a.registradoMs).slice(0, MAX_DETALLE).map(proyectarAdmin_),
     recortado: enRango.length > MAX_DETALLE
   };

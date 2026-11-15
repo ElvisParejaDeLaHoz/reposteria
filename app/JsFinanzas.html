@@ -74,7 +74,7 @@
         k.appendChild(kpi('Ganancia', fmtDinero(a.ganancia), a.ventas ? pct(a.ganancia / a.ventas) + ' % de lo vendido' : 'Ventas − costos − gastos', a.ganancia >= 0 ? 'bien' : 'mal'));
         k.appendChild(kpi('Recibido', fmtDinero(a.recibido), 'Plata que entró de verdad'));
         k.appendChild(kpi('Gastos', fmtDinero(a.gastosVariables + a.gastosFijos), 'Fijos ' + fmtDinero(a.gastosFijos)));
-        k.appendChild(kpi('Me pagué', fmtDinero(a.retiros), 'Retiros de la dueña'));
+        k.appendChild(kpi('Me pagué', fmtDinero(a.retiros), 'Lo que retiraste para ti'));
         k.appendChild(kpi('Me deben', fmtDinero(porCobrar), plural(d.porCobrar.length, 'pedido', 'pedidos') + ' con saldo', porCobrar ? 'mal' : ''));
         c.appendChild(k);
 

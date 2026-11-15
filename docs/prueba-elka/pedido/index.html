@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Tu pedido · Pastelería de Prueba</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!--
+    Página de seguimiento del pedido para el cliente.
+    herramientas/flota.mjs la copia a docs/<negocio>/pedido/index.html y cambia https://script.google.com/macros/s/AKfycbzEjGwt61rzP2r-jE0Qvqx8wAcDV_3IwgxVfoZkY-KAttSQWeXvBXqxV4BJzwQI1iZwwA/exec por la dirección de la app.
+    Si no hay página de GitHub, la misma app la sirve en …/exec?seguimiento=<código> (Seguimiento.gs).
+  -->
+  <style>
+    :root {
+      --marca: #C0245E; --marca-osc: #9A1B4A; --marca-claro: #FBE6EE; --fondo: #FBF6EF; --papel: #FFFFFF;
+      --tinta: #1E2A28; --suave: #5C6662; --linea: #E7E1D8; --ok: #1F5E4A; --sol: #F2B544;
+      --titulos: 'Bricolage Grotesque', 'Segoe UI', sans-serif; --texto: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --fondo: #141916; --papel: #1D2420; --tinta: #EDE8E0; --suave: #A9B3AE; --linea: #2E3833; --marca-claro: #2C2226; --ok: #6FBF9F; color-scheme: dark; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fondo); color: var(--tinta); font: 16px/1.55 var(--texto); -webkit-font-smoothing: antialiased; }
+    h1, h2, h3 { font-family: var(--titulos); line-height: 1.1; margin: 0; }
+    p { margin: 0; }
+    button { font: inherit; }
+    [hidden] { display: none !important; }
+    .envoltura { width: min(560px, 100% - 32px); margin: 0 auto; padding: 20px 0 calc(32px + env(safe-area-inset-bottom)); display: grid; gap: 16px; }
+    .cabecera { display: flex; align-items: center; gap: 12px; }
+    .cabecera img { width: 48px; height: 48px; object-fit: contain; border-radius: 12px; background: #fff; padding: 4px; }
+    .cabecera .inicial { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; background: var(--marca); color: #fff; font-family: var(--titulos); font-weight: 800; font-size: 1.4rem; }
+    .cabecera b { display: block; font-family: var(--titulos); font-size: 1.15rem; }
+    .cabecera small { color: var(--suave); }
+    .tarjeta { background: var(--papel); border: 1px solid var(--linea); border-radius: 24px; padding: 22px; }
+    .estado { background: var(--marca); color: #fff; border: 0; text-align: center; padding: 30px 22px 26px; }
+    .estado .emoji { font-size: 3.2rem; line-height: 1; }
+    .estado h1 { margin-top: 12px; font-size: clamp(1.6rem, 6vw, 2.1rem); font-weight: 800; }
+    .estado p { margin-top: 8px; opacity: .92; }
+    .estado .entrega { margin-top: 16px; display: inline-block; background: rgba(255, 255, 255, .16); border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: .95rem; }
+    .linea { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+    .paso { position: relative; display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; }
+    .paso::before { content: ''; position: absolute; left: 15px; top: -10px; height: 20px; width: 2px; background: var(--linea); }
+    .paso:first-child::before { display: none; }
+    .paso.hecho::before { background: var(--ok); }
+    .paso .punto { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--linea); color: var(--suave); font-size: .9rem; background: var(--papel); position: relative; z-index: 1; }
+    .paso.hecho .punto { background: var(--ok); border-color: var(--ok); color: #fff; }
+    .paso.actual .punto { border-color: var(--marca); color: var(--marca); box-shadow: 0 0 0 5px var(--marca-claro); }
+    .paso b { font-weight: 600; }
+    .paso.pendiente b { color: var(--suave); font-weight: 500; }
+    .paso time { color: var(--suave); font-size: .88rem; font-variant-numeric: tabular-nums; }
+    .actualizado { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--linea); color: var(--suave); font-size: .88rem; }
+    .boton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border-radius: 999px; border: 0; font-weight: 700; text-decoration: none; cursor: pointer; }
+    .boton:focus-visible { outline: 3px solid var(--sol); outline-offset: 3px; }
+    .boton.lleno { background: var(--marca); color: #fff; }
+    .boton.borde { background: transparent; color: var(--tinta); border: 1.5px solid var(--linea); }
+    .boton.wa { background: #1F8F4E; color: #fff; }
+    .boton.chico { min-height: 36px; padding: 0 14px; font-size: .88rem; }
+    .boton:disabled { opacity: .6; cursor: progress; }
+    .ancho { width: 100%; }
+    .botones { display: grid; gap: 10px; margin-top: 16px; }
+    .aviso { border-radius: 20px; padding: 20px; background: var(--marca-claro); }
+    .aviso h2 { font-size: 1.25rem; }
+    .aviso p { margin-top: 8px; color: var(--suave); }
+    .aviso .cuenta { margin-top: 12px; font-weight: 700; color: var(--tinta); }
+    .estrellas { display: flex; justify-content: center; gap: 6px; margin: 16px 0 8px; }
+    .estrellas button { width: 52px; height: 52px; border: 0; background: none; font-size: 2.4rem; line-height: 1; cursor: pointer; color: var(--linea); padding: 0; transition: transform .12s; }
+    .estrellas button.on { color: var(--sol); }
+    .estrellas button:active { transform: scale(.9); }
+    .estrellas button:focus-visible { outline: 3px solid var(--marca); border-radius: 12px; }
+    .etiqueta-estrellas { text-align: center; min-height: 1.5em; font-weight: 600; color: var(--suave); }
+    textarea { width: 100%; margin-top: 12px; min-height: 84px; border-radius: 14px; border: 1.5px solid var(--linea); background: var(--fondo); color: var(--tinta); padding: 12px 14px; font: inherit; resize: vertical; }
+    textarea:focus { outline: 3px solid var(--marca-claro); border-color: var(--marca); }
+    .centro { text-align: center; }
+    .foto { width: 100%; border-radius: 18px; margin-top: 14px; display: block; }
+    canvas.tarjeta-reco { width: 100%; height: auto; border-radius: 18px; margin-top: 14px; display: block; box-shadow: 0 14px 30px -18px rgba(0, 0, 0, .5); }
+    .error-txt { color: #B3261E; font-weight: 600; margin-top: 10px; }
+    .pie { text-align: center; color: var(--suave); font-size: .82rem; }
+    .pie b { color: var(--ok); }
+    #cargando { display: grid; gap: 16px; }
+    .esqueleto { height: 170px; border-radius: 24px; background: linear-gradient(90deg, var(--linea), var(--papel), var(--linea)); background-size: 200% 100%; animation: brillo 1.4s infinite; }
+    .esqueleto.alto { height: 240px; }
+    .esqueleto.chico { height: 48px; width: 60%; border-radius: 14px; }
+    .esqueleto.foto-esq { height: 240px; margin-top: 14px; border-radius: 18px; }
+    .cargando-txt { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--suave); font-weight: 600; text-align: center; }
+    @keyframes brillo { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    .girando { display: inline-block; flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid currentColor; border-right-color: transparent; animation: girar .8s linear infinite; }
+    @keyframes girar { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .esqueleto { animation: none; } .estrellas button { transition: none; } .girando { animation-duration: 2.4s; } }
+  </style>
+</head>
+<body>
+  <main class="envoltura">
+    <header class="cabecera" id="cabecera" hidden>
+      <span class="inicial" id="inicial" aria-hidden="true"></span>
+      <img id="logo" alt="" hidden>
+      <div><b id="negocio"></b><small id="ref"></small></div>
+    </header>
+
+    <div id="cargando" role="status" aria-live="polite">
+      <div class="esqueleto chico" aria-hidden="true"></div>
+      <div class="esqueleto alto" aria-hidden="true"></div>
+      <div class="esqueleto" aria-hidden="true"></div>
+      <p class="cargando-txt"><span class="girando" aria-hidden="true"></span><span id="cargando-txt">Buscando tu pedido…</span></p>
+    </div>
+
+    <section class="aviso" id="ocupado" hidden role="status" aria-live="polite">
+      <h2>¡Estamos a toda máquina! 🧁</h2>
+      <p>En este momento estamos atendiendo muchos pedidos y trabajando para terminar el tuyo a tiempo. No te preocupes: lo más importante eres tú.</p>
+      <p class="cuenta" id="ocupado-cuenta"></p>
+      <button class="boton borde chico" id="reintentar" type="button" style="margin-top:12px">Intentar ahora</button>
+    </section>
+
+    <section class="aviso" id="error" hidden role="alert">
+      <h2 id="error-titulo">No pudimos abrir tu pedido</h2>
+      <p id="error-texto"></p>
+    </section>
+
+    <section class="tarjeta estado" id="estado" hidden aria-live="polite">
+      <div class="emoji" id="emoji" aria-hidden="true"></div>
+      <h1 id="titulo"></h1>
+      <p id="detalle"></p>
+      <span class="entrega" id="entrega"></span>
+    </section>
+
+    <section class="tarjeta" id="pasos-tarjeta" hidden>
+      <h2 style="font-size:1.1rem">Así va tu pedido</h2>
+      <ol class="linea" id="pasos"></ol>
+      <div class="actualizado">
+        <span id="actualizado"></span>
+        <button class="boton borde chico" id="actualizar" type="button">Actualizar</button>
+      </div>
+    </section>
+
+    <section class="tarjeta centro" id="calificar" hidden>
+      <h2 style="font-size:1.3rem">¿Cómo te fue con tu pedido?</h2>
+      <p style="color:var(--suave);margin-top:6px">Tu opinión nos ayuda a mejorar.</p>
+      <div class="estrellas" id="estrellas" role="radiogroup" aria-label="Calificación de 1 a 5 estrellas"></div>
+      <p class="etiqueta-estrellas" id="estrellas-txt"></p>
+      <label for="comentario" style="display:block;text-align:left;font-weight:600;margin-top:10px">Cuéntanos más (opcional)</label>
+      <textarea id="comentario" maxlength="300" placeholder="¿Qué fue lo que más te gustó?"></textarea>
+      <p class="error-txt" id="calificar-error" hidden></p>
+      <button class="boton lleno ancho" id="enviar" type="button" style="margin-top:14px" disabled>Enviar calificación</button>
+    </section>
+
+    <section class="tarjeta centro" id="gracias" hidden>
+      <h2 style="font-size:1.3rem" id="gracias-titulo">¡Gracias por tu calificación!</h2>
+      <p style="color:var(--suave);margin-top:6px" id="gracias-texto"></p>
+      <div id="recomendar" hidden>
+        <canvas class="tarjeta-reco" id="lienzo" width="1080" height="1350" role="img" aria-label="Tarjeta para recomendar el negocio"></canvas>
+        <div class="botones">
+          <button class="boton lleno" id="compartir" type="button">Compartir en mi estado o redes</button>
+          <a class="boton wa" id="enviar-wa" target="_blank" rel="noopener">Recomendar por WhatsApp</a>
+          <a class="boton borde" id="descargar" download="recomendacion.png">Descargar imagen</a>
+        </div>
+      </div>
+      <button class="boton borde chico" id="cambiar" type="button" style="margin-top:14px">Cambiar mi calificación</button>
+    </section>
+
+    <section class="tarjeta" id="foto-tarjeta" hidden>
+      <h2 style="font-size:1.1rem">Foto de la entrega</h2>
+      <div class="esqueleto foto-esq" id="foto-esq" aria-label="Cargando la foto"></div>
+      <img class="foto" id="foto" alt="Foto de tu pedido entregado" hidden>
+    </section>
+
+    <a class="boton wa ancho" id="contacto" target="_blank" rel="noopener" hidden>Escribirle al negocio por WhatsApp</a>
+
+    <p class="pie">Seguimiento con <b>Elka</b> 🌱</p>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+      var API = 'https://script.google.com/macros/s/AKfycbzEjGwt61rzP2r-jE0Qvqx8wAcDV_3IwgxVfoZkY-KAttSQWeXvBXqxV4BJzwQI1iZwwA/exec';
+      var codigo = (/[?&](?:c|seguimiento)=([a-z2-9]{12})/.exec(location.search) || [])[1] || '';
+      var D = null, fotoUrl = '', logoUrl = '', estrellas = 0, intento = 0, timerReintento = null, timerSondeo = null, ultimaConsulta = 0;
+      var DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      var TXT_ESTRELLAS = ['', 'No me gustó', 'Puede mejorar', 'Estuvo bien', '¡Muy bueno!', '¡Excelente!'];
+
+      function $(id) { return document.getElementById(id); }
+      function mostrar(id, si) { $(id).hidden = !si; }
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      function guardar(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
+      function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+      /* ---------- Colores del negocio ---------- */
+      function rgb(h) { var n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+      function hex(c) { return '#' + c.map(function (v) { return pad2(Math.max(0, Math.min(255, Math.round(v))).toString(16)); }).join(''); }
+      function pad2(t) { return t.length < 2 ? '0' + t : t; }
+      function mezclar(a, b, t) { var x = rgb(a), y = rgb(b); return hex([0, 1, 2].map(function (i) { return x[i] * (1 - t) + y[i] * t; })); }
+      function luz(h) { var c = rgb(h).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+      function legible(h) { var n = 0; while (1.05 / (luz(h) + 0.05) < 4.5 && n++ < 30) h = mezclar(h, '#000000', 0.08); return h; }
+      function aplicarColores(principal) {
+        if (!/^#[0-9a-f]{6}$/i.test(principal || '')) return;
+        var p = legible(principal), r = document.documentElement.style;
+        r.setProperty('--marca', p);
+        r.setProperty('--marca-osc', mezclar(p, '#000000', 0.2));
+        var oscuro = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+        r.setProperty('--marca-claro', oscuro ? mezclar(p, '#141916', 0.8) : mezclar(p, '#FFFFFF', 0.88));
+        var meta = document.querySelector('meta[name=theme-color]') || document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'theme-color' }));
+        meta.content = p;
+      }
+
+      /* ---------- Textos ---------- */
+      function fechaTxt(iso, hm) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return '';
+        var p = iso.split('-').map(Number), d = new Date(p[0], p[1] - 1, p[2]);
+        var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+        var dias = Math.round((d - hoy) / 86400000);
+        var dia = dias === 0 ? 'hoy' : dias === 1 ? 'mañana' : DIAS[d.getDay()] + ' ' + d.getDate() + ' de ' + MESES[d.getMonth()];
+        return dia + (hm ? ' a las ' + horaTxt(hm) : '');
+      }
+      function horaTxt(hm) {
+        var p = String(hm).split(':').map(Number);
+        if (isNaN(p[0])) return '';
+        return ((p[0] % 12) || 12) + ':' + pad(p[1] || 0) + (p[0] >= 12 ? ' p. m.' : ' a. m.');
+      }
+      function horaDeMs(ms) {
+        if (!ms) return '';
+        var d = new Date(ms), hoy = new Date();
+        var h = horaTxt(d.getHours() + ':' + d.getMinutes());
+        return d.toDateString() === hoy.toDateString() ? h : d.getDate() + ' ' + MESES[d.getMonth()].slice(0, 3) + ', ' + h;
+      }
+      function hace(ms) {
+        var min = Math.max(0, Math.round((Date.now() - ms) / 60000));
+        return min < 1 ? 'Actualizado hace un momento' : 'Actualizado hace ' + min + (min === 1 ? ' minuto' : ' minutos');
+      }
+
+      /* ---------- Consultar a la app ---------- */
+      function pedir(params, ms) {
+        var url = API + (API.indexOf('?') < 0 ? '?' : '&') + params;
+        var ctrl = window.AbortController ? new AbortController() : null;
+        var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, ms || 15000);
+        return fetch(url, { redirect: 'follow', signal: ctrl ? ctrl.signal : undefined, credentials: 'omit' })
+          .then(function (r) { return r.text(); })
+          .then(function (txt) {
+            clearTimeout(t);
+            try { return JSON.parse(txt); } catch (e) { return { ok: false, ocupado: true }; } // Google respondió una página de error: mucha carga
+          }, function () { clearTimeout(t); return { ok: false, ocupado: true }; });
+      }
+
+      /** Botón con un círculo girando mientras espera; al terminar vuelve a su texto. */
+      function ocupado(b, texto) {
+        b.dataset.txt = b.dataset.txt || b.textContent;
+        b.disabled = !!texto;
+        b.textContent = '';
+        if (texto) { var g = document.createElement('span'); g.className = 'girando'; g.setAttribute('aria-hidden', 'true'); b.appendChild(g); }
+        b.appendChild(document.createTextNode(texto || b.dataset.txt));
+      }
+
+      /* Mientras busca el pedido por primera vez, el mensaje cambia si tarda: la página nunca se ve quieta. */
+      [[5000, 'Un momento, ya casi…'], [12000, 'Está tardando un poco más de lo normal. Seguimos intentando…']].forEach(function (x) {
+        setTimeout(function () { if (!$('cargando').hidden) $('cargando-txt').textContent = x[1]; }, x[0]);
+      });
+
+      function cargar(silencioso) {
+        if (!codigo) { mostrarError('Enlace incompleto', 'Este enlace no tiene el código del pedido. Pídele al negocio que te lo envíe de nuevo.'); return; }
+        clearTimeout(timerReintento);
+        ocupado($('actualizar'), 'Actualizando…');
+        pedir('api=seguimiento&c=' + codigo).then(function (r) {
+          ocupado($('actualizar'), '');
+          mostrar('cargando', false);
+          if (r && r.ok) { intento = 0; mostrar('ocupado', false); D = r; ultimaConsulta = Date.now(); pintar(); programarSondeo(); return; }
+          if (r && r.ocupado) { esperarYReintentar(); return; }
+          mostrarError('No pudimos abrir tu pedido', (r && r.error) || 'Inténtalo de nuevo en un momento.');
+        });
+      }
+
+      /** Mucha carga: mensaje amable y nuevo intento solo (30 s, 1 min, 2 min…, con un poco de azar para no llegar todos a la vez). */
+      function esperarYReintentar() {
+        intento++;
+        var espera = Math.min(300, 30 * Math.pow(2, intento - 1)) + Math.round(Math.random() * 15);
+        mostrar('ocupado', true);
+        var fin = Date.now() + espera * 1000;
+        (function contar() {
+          var s = Math.max(0, Math.round((fin - Date.now()) / 1000));
+          $('ocupado-cuenta').textContent = 'Lo volvemos a intentar solos en ' + (s >= 60 ? Math.ceil(s / 60) + ' min' : s + ' s') + '.';
+          if (s <= 0) { cargar(true); return; }
+          timerReintento = setTimeout(contar, 1000);
+        })();
+      }
+
+      function programarSondeo() {
+        clearTimeout(timerSondeo);
+        var e = D && D.pedido.estado;
+        if (e === 'Entregado' || e === 'Cancelado') return;
+        timerSondeo = setTimeout(function () { if (!document.hidden) cargar(true); else programarSondeo(); }, 5 * 60 * 1000);
+      }
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && D && $('ocupado').hidden && Date.now() - ultimaConsulta > 60000) cargar(true);
+      });
+      $('actualizar').addEventListener('click', function () { cargar(false); });
+      $('reintentar').addEventListener('click', function () { intento = Math.max(0, intento - 1); cargar(false); });
+
+      function mostrarError(titulo, texto) {
+        mostrar('cargando', false);
+        $('error-titulo').textContent = titulo;
+        $('error-texto').textContent = texto;
+        mostrar('error', true);
+      }
+
+      /* ---------- Pintar ---------- */
+      function pintar() {
+        var n = D.negocio, p = D.pedido, t = n.producto, fem = t.femenino;
+        var el = fem ? 'la' : 'el', lista = fem ? 'lista' : 'listo', entregadx = fem ? 'entregada' : 'entregado';
+        aplicarColores(n.principal);
+        document.title = 'Tu pedido · ' + n.nombre;
+        $('negocio').textContent = n.nombre;
+        $('ref').textContent = 'Pedido #' + p.ref;
+        $('inicial').textContent = (n.nombre.match(/[A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/) || ['?'])[0].toUpperCase();
+        mostrar('cabecera', true);
+        cargarLogo();
+
+        var dom = p.entrega === 'Domicilio';
+        var E = {
+          'Pendiente': ['📝', 'Recibimos tu pedido', 'Ya está en nuestra lista. Pronto empezamos a preparar tu ' + t.singular + '.'],
+          'En preparación': ['👩‍🍳', '¡Manos a la obra!', 'Estamos preparando tu ' + t.singular + ' con mucho cariño.'],
+          'Listo': ['✨', '¡Tu ' + t.singular + ' está ' + lista + '!', dom ? 'Muy pronto sale para tu dirección.' : 'Ya puedes pasar a recoger' + (fem ? 'la' : 'lo') + '.'],
+          'En camino': ['🛵', '¡Va en camino!', 'Tu ' + t.singular + ' ya salió y va para allá.'],
+          'Entregado': ['🎉', '¡' + cap(entregadx) + '!', 'Esperamos que lo disfrutes. ¡Gracias por elegirnos!'],
+          'Cancelado': ['😔', 'Este pedido fue cancelado', 'Si tienes alguna duda, escríbenos y con gusto te ayudamos.']
+        }[p.estado] || ['📦', 'Tu pedido', ''];
+        $('emoji').textContent = E[0];
+        $('titulo').textContent = E[1];
+        $('detalle').textContent = E[2];
+        var ft = fechaTxt(p.fecha, p.hora);
+        $('entrega').textContent = p.estado === 'Entregado' ? 'Entregado ' + (horaDeMs(p.pasos.entregado) ? 'a las ' + horaDeMs(p.pasos.entregado) : '')
+          : (ft ? (dom ? 'Entrega a domicilio ' : 'Para recoger ') + ft : '');
+        mostrar('entrega', p.estado !== 'Cancelado' && !!$('entrega').textContent.trim());
+        mostrar('estado', true);
+
+        var pasos = [['recibido', 'Recibido'], ['preparando', 'Preparando'], ['listo', cap(lista)]];
+        if (dom) pasos.push(['camino', 'En camino']);
+        pasos.push(['entregado', cap(entregadx)]);
+        var orden = ['Pendiente', 'En preparación', 'Listo', 'En camino', 'Entregado'];
+        var nivel = { recibido: 0, preparando: 1, listo: 2, camino: 3, entregado: 4 };
+        var actual = orden.indexOf(p.estado);
+        var ol = $('pasos');
+        ol.textContent = '';
+        pasos.forEach(function (x, i) {
+          var hecho = p.estado !== 'Cancelado' && (nivel[x[0]] <= actual || !!p.pasos[x[0]]);
+          var esActual = !hecho && p.estado !== 'Cancelado' && pasos.slice(0, i).every(function (y) { return p.estado !== 'Cancelado' && (nivel[y[0]] <= actual || !!p.pasos[y[0]]); });
+          var li = document.createElement('li');
+          li.className = 'paso ' + (hecho ? 'hecho' : esActual ? 'actual' : 'pendiente');
+          var punto = document.createElement('span'); punto.className = 'punto'; punto.textContent = hecho ? '✓' : String(i + 1); punto.setAttribute('aria-hidden', 'true');
+          var b = document.createElement('b'); b.textContent = x[1] + (hecho ? '' : esActual ? ' (siguiente)' : '');
+          var tm = document.createElement('time'); tm.textContent = hecho ? horaDeMs(p.pasos[x[0]]) : '';
+          li.appendChild(punto); li.appendChild(b); li.appendChild(tm);
+          ol.appendChild(li);
+        });
+        $('actualizado').textContent = hace(D.consultado || Date.now());
+        mostrar('pasos-tarjeta', p.estado !== 'Cancelado');
+
+        if (n.whatsapp) {
+          $('contacto').href = 'https://wa.me/' + n.whatsapp + '?text=' + encodeURIComponent('Hola ' + n.nombre + ', te escribo por mi pedido #' + p.ref + '.');
+          mostrar('contacto', true);
+        }
+
+        var entregado = p.estado === 'Entregado';
+        if (entregado && p.conFoto && !fotoUrl) cargarFoto();
+        mostrar('foto-tarjeta', entregado && p.conFoto);
+        if (entregado) {
+          if (D.calificacion) { estrellas = D.calificacion.estrellas; mostrarGracias(); }
+          else if ($('gracias').hidden) mostrarCalificar();
+        } else { mostrar('calificar', false); mostrar('gracias', false); }
+      }
+      function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+      function cargarLogo() {
+        if (logoUrl) return;
+        var k = 'elka-logo:' + API, g = null;
+        try { g = JSON.parse(leer(k) || 'null'); } catch (e) { g = null; }
+        if (g && g.dataUrl) ponerLogo(g.dataUrl);
+        pedir('api=logo&v=' + encodeURIComponent(g ? g.ver : ''), 20000).then(function (r) {
+          if (!r || !r.ok || r.igual) return;
+          if (r.sin) { ponerLogo(''); return; }
+          ponerLogo(r.dataUrl);
+          guardar(k, JSON.stringify({ ver: r.ver, dataUrl: r.dataUrl }));
+        });
+      }
+      function ponerLogo(url) {
+        logoUrl = url;
+        $('logo').src = url || '';
+        mostrar('logo', !!url);
+        mostrar('inicial', !url);
+        if (!$('gracias').hidden) dibujarTarjeta();
+      }
+      function cargarFoto() {
+        pedir('api=foto&c=' + codigo, 25000).then(function (r) {
+          if (!r || !r.ok || !r.dataUrl) { mostrar('foto-tarjeta', false); return; }
+          fotoUrl = r.dataUrl;
+          $('foto').src = fotoUrl;
+          mostrar('foto-esq', false);
+          mostrar('foto', true);
+          mostrar('foto-tarjeta', true);
+          if (!$('gracias').hidden) dibujarTarjeta();
+        });
+      }
+
+      /* ---------- Calificar ---------- */
+      function mostrarCalificar() {
+        mostrar('gracias', false);
+        mostrar('calificar', true);
+        var cont = $('estrellas');
+        if (!cont.childNodes.length) {
+          for (var i = 1; i <= 5; i++) (function (n) {
+            var b = document.createElement('button');
+            b.type = 'button'; b.textContent = '★';
+            b.setAttribute('role', 'radio'); b.setAttribute('aria-label', n + (n === 1 ? ' estrella' : ' estrellas') + ': ' + TXT_ESTRELLAS[n]);
+            b.addEventListener('click', function () { elegir(n); });
+            cont.appendChild(b);
+          })(i);
+        }
+        elegir(estrellas);
+        if (D.calificacion && D.calificacion.comentario && !$('comentario').value) $('comentario').value = D.calificacion.comentario;
+      }
+      function elegir(n) {
+        estrellas = n;
+        Array.prototype.forEach.call($('estrellas').childNodes, function (b, i) { b.classList.toggle('on', i < n); b.setAttribute('aria-checked', String(i + 1 === n)); });
+        $('estrellas-txt').textContent = TXT_ESTRELLAS[n] || 'Toca las estrellas';
+        $('enviar').disabled = !n;
+      }
+      $('enviar').addEventListener('click', function () {
+        var b = $('enviar'), err = $('calificar-error');
+        ocupado(b, 'Enviando…'); err.hidden = true;
+        var com = $('comentario').value.trim().slice(0, 300);
+        pedir('api=calificar&c=' + codigo + '&e=' + estrellas + '&t=' + encodeURIComponent(com)).then(function (r) {
+          ocupado(b, '');
+          if (r && r.ok) { D.calificacion = { estrellas: estrellas, comentario: com }; mostrarGracias(); return; }
+          err.textContent = (r && r.ocupado) ? 'Tenemos mucho movimiento en este momento. Inténtalo de nuevo en un minuto: tu calificación es muy importante para nosotros.' : ((r && r.error) || 'No se pudo enviar. Inténtalo de nuevo.');
+          err.hidden = false;
+        });
+      });
+      $('cambiar').addEventListener('click', mostrarCalificar);
+
+      /* ---------- Gracias y recomiéndame ---------- */
+      function mostrarGracias() {
+        mostrar('calificar', false);
+        mostrar('gracias', true);
+        var n = D.negocio, buena = estrellas >= 4;
+        $('gracias-titulo').textContent = buena ? '¡Gracias! Nos alegra que te haya gustado 💛' : 'Gracias por contarnos';
+        $('gracias-texto').textContent = buena
+          ? '¿Nos ayudas a crecer? Comparte esta tarjeta en tu estado de WhatsApp o en tus redes.'
+          : n.nombre + ' va a usar tu opinión para mejorar.' + (n.whatsapp ? ' Si quieres, escríbenos y lo resolvemos.' : '');
+        mostrar('recomendar', buena);
+        if (buena) dibujarTarjeta();
+      }
+
+      function textoRecomendacion() {
+        var n = D.negocio, c = D.calificacion || {};
+        var frase = c.comentario ? '"' + c.comentario + '"' : '¡Qué buen servicio! Mi ' + n.producto.singular + ' quedó ' + (n.producto.femenino ? 'perfecta' : 'perfecto') + '.';
+        return frase + ' ' + '⭐'.repeat(estrellas) + ' Te recomiendo ' + n.nombre + (n.whatsapp ? '. Pídeles por WhatsApp: https://wa.me/' + n.whatsapp : '') + '.';
+      }
+
+      function cargarImagen(src) {
+        return new Promise(function (ok) { if (!src) { ok(null); return; } var i = new Image(); i.onload = function () { ok(i); }; i.onerror = function () { ok(null); }; i.src = src; });
+      }
+      function envolver(ctx, texto, x, y, ancho, alto, max) {
+        var palabras = texto.split(' '), linea = '', lineas = [];
+        palabras.forEach(function (w) { var prueba = linea ? linea + ' ' + w : w; if (ctx.measureText(prueba).width > ancho && linea) { lineas.push(linea); linea = w; } else linea = prueba; });
+        if (linea) lineas.push(linea);
+        if (lineas.length > max) { lineas = lineas.slice(0, max); lineas[max - 1] = lineas[max - 1].replace(/\s*\S*$/, '…'); }
+        lineas.forEach(function (l, i) { ctx.fillText(l, x, y + i * alto); });
+        return lineas.length;
+      }
+      function rectRedondo(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+      /** Tarjeta de 1080 × 1350 (formato de estado y publicación) con la foto del pedido, las estrellas y el negocio. */
+      function dibujarTarjeta() {
+        var cv = $('lienzo'), ctx = cv.getContext('2d'), n = D.negocio, c = D.calificacion || {};
+        var marca = getComputedStyle(document.documentElement).getPropertyValue('--marca').trim() || '#C0245E';
+        Promise.all([cargarImagen(fotoUrl), cargarImagen(logoUrl)]).then(function (img) {
+          var foto = img[0], logo = img[1];
+          ctx.fillStyle = marca; ctx.fillRect(0, 0, 1080, 1350);
+          ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.arc(980, 120, 260, 0, Math.PI * 2); ctx.fill();
+          // Foto (o un emoji grande si no hay foto)
+          var fx = 90, fy = 90, fw = 900, fh = 700;
+          ctx.save(); rectRedondo(ctx, fx, fy, fw, fh, 48); ctx.clip();
+          if (foto) {
+            var k = Math.max(fw / foto.width, fh / foto.height), w = foto.width * k, h = foto.height * k;
+            ctx.drawImage(foto, fx + (fw - w) / 2, fy + (fh - h) / 2, w, h);
+          } else {
+            ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(fx, fy, fw, fh);
+            ctx.font = '260px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText('🎉', 540, fy + fh / 2);
+          }
+          ctx.restore();
+          // Estrellas
+          ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+          ctx.font = '84px serif'; ctx.fillStyle = '#F2B544';
+          ctx.fillText('★★★★★'.slice(0, estrellas) + '☆☆☆☆☆'.slice(0, 5 - estrellas), 540, 920);
+          // Frase
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = '700 54px "Bricolage Grotesque", "Segoe UI", sans-serif';
+          var frase = c.comentario ? '“' + c.comentario + '”' : '¡Qué buen servicio!';
+          var nl = envolver(ctx, frase, 540, 1010, 880, 64, 3);
+          ctx.font = '500 40px "Instrument Sans", "Segoe UI", sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.9)';
+          ctx.fillText('Mi ' + n.producto.singular + ' de ' + n.nombre, 540, 1010 + nl * 64 + 20);
+          // Pie: logo + WhatsApp
+          var py = 1250;
+          if (logo) { var lh = 80, lw = Math.min(200, logo.width * lh / logo.height); ctx.fillStyle = '#fff'; rectRedondo(ctx, 90, py - 60, lw + 24, lh + 24, 18); ctx.fill(); ctx.drawImage(logo, 102, py - 48, lw, lh); }
+          ctx.textAlign = logo ? 'right' : 'center'; ctx.fillStyle = '#fff'; ctx.font = '700 40px "Instrument Sans", "Segoe UI", sans-serif';
+          var wa = n.whatsapp ? 'Pide por WhatsApp: ' + formatearTel(n.whatsapp) : n.nombre;
+          ctx.fillText(wa, logo ? 990 : 540, py);
+          prepararBotones(cv);
+        });
+      }
+      function formatearTel(w) { var d = w.replace(/^57(?=3\d{9}$)/, ''); return d.length === 10 ? d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6) : '+' + w; }
+
+      function prepararBotones(cv) {
+        var texto = textoRecomendacion();
+        $('enviar-wa').href = 'https://wa.me/?text=' + encodeURIComponent(texto);
+        try { $('descargar').href = cv.toDataURL('image/png'); } catch (e) { $('descargar').hidden = true; }
+        var puedeArchivo = false;
+        try { puedeArchivo = !!(navigator.canShare && navigator.canShare({ files: [new File([new Blob()], 'x.png', { type: 'image/png' })] })); } catch (e) { puedeArchivo = false; }
+        mostrar('compartir', puedeArchivo || !!navigator.share);
+        $('compartir').onclick = function () {
+          cv.toBlob(function (blob) {
+            var datos = { text: texto, title: D.negocio.nombre };
+            if (blob && puedeArchivo) datos.files = [new File([blob], 'recomendacion.png', { type: 'image/png' })];
+            navigator.share(datos).catch(function () { /* la persona cerró el menú */ });
+          }, 'image/png');
+        };
+      }
+
+      cargar(false);
+    })();
+  </script>
+</body>
+</html>

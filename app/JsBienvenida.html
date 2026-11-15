@@ -62,7 +62,7 @@
           if (!r || !r.ok) { errorBv((r && r.error) || 'No se pudo revisar el código.'); return; }
           BV.codigo = codigo;
           $('#bv-negocio').value = r.negocio || '';
-          $('#bv-producto').value = r.producto || '';
+          productoBv.poner(r.producto || '');
           BV.color = r.principal || BV_COLORES[0];
           BV.fijos = (r.fijos && r.fijos.length) ? r.fijos : BV_FIJOS.map(function (c) { return { concepto: c, valor: 0 }; });
           $('#bv-sueldo').value = r.sueldo ? dineroTexto(r.sueldo) : '';
@@ -77,24 +77,61 @@
       $('#bv-0').addEventListener('submit', function (e) { e.preventDefault(); revisarCodigoBv(); });
 
       /* --- Paso 1: el negocio --- */
+      /* ---------- "¿Qué vendes?": palabra, casilla de femenino y ejemplo en vivo (bienvenida y Ajustes) ---------- */
+      var FEM_AUTO = /(a|ción|sión|dad|tad|tud|umbre)$/i;
+      function primeraPalabra(t) { return String(t || '').split(',')[0].trim().split(/\s+/)[0] || ''; }
+      /** "torta (f)" → { texto: 'torta', fem: true }. Sin marca, se adivina por cómo termina. */
+      function separarProducto(txt) {
+        txt = String(txt || '').trim();
+        var fem = null, m = txt.match(/\s*\((f|m)\)\s*$/i);
+        if (m) { fem = m[1].toLowerCase() === 'f'; txt = txt.slice(0, m.index).trim(); }
+        if (fem === null) fem = FEM_AUTO.test(primeraPalabra(txt));
+        return { texto: txt, fem: fem };
+      }
+      /** Solo se escribe la marca (f) o (m) cuando no coincide con lo que se adivinaría. */
+      function unirProducto(texto, fem) {
+        texto = String(texto || '').trim();
+        if (!texto) return '';
+        var auto = FEM_AUTO.test(primeraPalabra(texto));
+        return texto + (fem === auto ? '' : (fem ? ' (f)' : ' (m)'));
+      }
+      function enlazarProducto(input, check, previa) {
+        var tocado = false;
+        function pintar() {
+          if (!input.value.trim()) { previa.textContent = ''; return; }
+          var t = leerTermino(unirProducto(input.value, check.checked), 'pedido');
+          var s = t.s.toLowerCase(), f = t.f;
+          previa.textContent = 'Así se verá: «' + (f ? 'Nueva ' : 'Nuevo ') + s + '» · «' + cap(t.p.toLowerCase()) + ' de hoy» · «' +
+            (f ? 'La ' : 'El ') + s + ' está ' + (f ? 'lista' : 'listo') + '»';
+        }
+        input.addEventListener('input', function () { if (!tocado) check.checked = FEM_AUTO.test(primeraPalabra(input.value)); pintar(); });
+        check.addEventListener('change', function () { tocado = true; pintar(); });
+        return {
+          poner: function (v) { var x = separarProducto(v); input.value = x.texto; check.checked = x.fem; tocado = false; pintar(); },
+          leer: function () { return unirProducto(input.value, check.checked); }
+        };
+      }
+      var productoBv = enlazarProducto($('#bv-producto'), $('#bv-producto-f'), $('#bv-producto-previa'));
+
       function selectorColor(cont, actual, nombre, alCambiar) {
         cont.textContent = '';
+        var otro = el('label', 'color-otro');
         var lista = BV_COLORES.slice();
         if (actual && lista.indexOf(actual.toUpperCase()) < 0) lista.unshift(actual.toUpperCase());
         lista.forEach(function (c) {
           var l = el('label', 'color-op');
           var i = el('input'); i.type = 'radio'; i.name = nombre; i.value = c; i.checked = c === (actual || '').toUpperCase();
           i.setAttribute('aria-label', 'Color ' + c);
-          i.addEventListener('change', function () { alCambiar(c); });
+          i.addEventListener('change', function () { otro.classList.remove('elegido'); alCambiar(c); });
           var s = el('span'); s.style.background = c;
           l.appendChild(i); l.appendChild(s);
           cont.appendChild(l);
         });
-        var otro = el('label', 'color-otro');
         var pick = el('input'); pick.type = 'color'; pick.value = actual || BV_COLORES[0];
         pick.setAttribute('aria-label', 'Elegir otro color');
         pick.addEventListener('input', function () {
           $$('input[name="' + nombre + '"]', cont).forEach(function (r) { r.checked = false; });
+          otro.classList.add('elegido');
           alCambiar(pick.value.toUpperCase());
         });
         otro.appendChild(pick);
@@ -168,6 +205,7 @@
         var u = $('#bv-usuario').value.trim().toLowerCase();
         $('#bv-usuario').value = u;
         if ($('#bv-nombre').value.trim().length < 2) { errorBv('Escribe tu nombre.'); $('#bv-nombre').focus(); return; }
+        if (!$('input[name="bv-sexo"]:checked')) { errorBv('Indica si eres mujer u hombre.'); $('input[name="bv-sexo"]').focus(); return; }
         if (!/^[a-z0-9._-]{3,30}$/.test(u)) { errorBv('El usuario debe tener de 3 a 30 letras o números, sin espacios ni tildes.'); $('#bv-usuario').focus(); return; }
         if ($('#bv-clave').value.length < 6) { errorBv('La clave debe tener al menos 6 caracteres.'); $('#bv-clave').focus(); return; }
         if ($('#bv-clave').value !== $('#bv-clave2').value) { errorBv('Las dos claves no son iguales.'); $('#bv-clave2').focus(); return; }
@@ -209,10 +247,11 @@
       function terminarBv(conNumeros, boton) {
         var datos = {
           negocio: $('#bv-negocio').value.trim(),
-          producto: $('#bv-producto').value.trim(),
+          producto: productoBv.leer(),
           principal: BV.color,
           logo: BV.logo ? { mime: BV.logo.mime, base64: BV.logo.base64 } : null,
           nombre: $('#bv-nombre').value.trim(),
+          sexo: ($('input[name="bv-sexo"]:checked') || {}).value || '',
           usuario: $('#bv-usuario').value.trim(),
           clave: $('#bv-clave').value,
           todoYo: $('#bv-todo').checked,
@@ -234,7 +273,7 @@
           guardarToken(r.token);
           entrar(r);
           cargarLogo();
-          toast('¡Listo! Tu app está activada. Bienvenida, ' + r.nombre.split(' ')[0] + '.');
+          toast('¡Listo! Tu app está activada. Te damos la bienvenida, ' + r.nombre.split(' ')[0] + '.');
         }).catch(function () {
           ocupadoBv(boton, '');
           errorBv('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo: no se perdió lo que escribiste.');

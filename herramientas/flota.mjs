@@ -2,7 +2,7 @@
 /**
  * FLOTA: instala y actualiza la app en el proyecto de cada negocio.
  *
- *   node herramientas/flota.mjs instalar <id> --nombre "Floristería Rosa" [--giro floristeria] [--cuenta soporte] [--correo dueña@gmail.com] [--color #C0245E]
+ *   node herramientas/flota.mjs instalar <id> --nombre "Floristería Rosa" [--giro floristeria] [--cuenta soporte] [--correo negocio@gmail.com] [--color #C0245E]
  *   node herramientas/flota.mjs giros
  *   node herramientas/flota.mjs actualizar --todos [--nota "Gastos y cierre de caja"]
  *   node herramientas/flota.mjs actualizar <id> [<id> ...]
@@ -21,7 +21,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// realpath da la ruta con la letra de la unidad bien escrita (C:\ y no c:\). Si no, clasp 3 compara
+// rutas, cree que la carpeta es un acceso directo y se niega a subir ("Content directory is a symlink").
+const RAIZ = fs.realpathSync.native(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
 const APP = path.join(RAIZ, 'app');
 /** Todo lo que se sube a cada proyecto: los .gs, los .html y el manifiesto. */
 function archivosApp() {
@@ -85,8 +87,14 @@ function prepararCarpeta(id, c) {
   // El registro es la fuente de verdad: .flota/ se puede borrar y se reconstruye solo.
   // 00_Config.gs va primero: tiene las constantes que usan los demás archivos.
   escribirJSON(path.join(dir, '.clasp.json'), { scriptId: c.scriptId, rootDir: '', filePushOrder: ['00_Config.gs'] });
-  copiarApp(dir, c);
+  copiarApp(dir, Object.assign({}, c, { pagina: paginaDe(id) }));
   return dir;
+}
+
+/** Dirección pública de la página del negocio (con / al final), o '' si todavía no hay paginaBase. */
+function paginaDe(id) {
+  const base = config().paginaBase || '';
+  return /^https:\/\//.test(base) && !/TU-USUARIO/.test(base) ? base.replace(/\/$/, '') + '/' + id + '/' : '';
 }
 
 function copiarApp(dir, c) {
@@ -95,11 +103,18 @@ function copiarApp(dir, c) {
   fs.readdirSync(dir).filter(f => /\.(gs|html)$/.test(f)).forEach(f => fs.unlinkSync(path.join(dir, f)));
   const archivos = archivosApp();
   archivos.forEach(f => fs.copyFileSync(path.join(APP, f), path.join(dir, f)));
-  // Valores de arranque del tipo de negocio. Solo se usan cuando se crea la hoja Configuración.
+  // Giro.gs: datos de esta instalación. GIRO_INICIAL son los valores de arranque del tipo de negocio (solo se
+  // usan al crear la hoja Configuración) y PAGINA_NEGOCIO la dirección de su página, para los enlaces de seguimiento.
   const g = c && c.giro ? giros()[c.giro] : null;
-  if (g) {
-    fs.writeFileSync(path.join(dir, 'Giro.gs'), '/* Generado por herramientas/flota.mjs: tipo de negocio "' + c.giro + '". No lo edites aquí. */\n' +
-      'const GIRO_INICIAL = ' + JSON.stringify(g.config || {}, null, 2) + ';\n');
+  const pagina = c && typeof c.pagina === 'string' && /^https:\/\//.test(c.pagina) ? c.pagina : '';
+  if (g || pagina) {
+    // El color del tipo de negocio (o el de --color) también es el color de arranque de la app, no solo del ícono.
+    const inicial = Object.assign({}, (g && g.config) || {});
+    const color = /^#[0-9a-f]{6}$/i.test(c.color || '') ? c.color : (g && g.color);
+    if (color && !inicial['Color principal']) inicial['Color principal'] = color;
+    fs.writeFileSync(path.join(dir, 'Giro.gs'), '/* Generado por herramientas/flota.mjs' + (g ? ': tipo de negocio "' + c.giro + '"' : '') + '. No lo edites aquí. */\n' +
+      'const GIRO_INICIAL = ' + JSON.stringify(inicial, null, 2) + ';\n' +
+      'const PAGINA_NEGOCIO = ' + JSON.stringify(pagina) + ';\n');
     archivos.push('Giro.gs');
   }
   fs.writeFileSync(path.join(dir, '.claspignore'), '**/**\n' + archivos.map(f => '!' + f).join('\n') + '\n');
@@ -129,6 +144,22 @@ function probarAntes(o) {
 
 /* ---------------- comandos ---------------- */
 
+/** Crea la hoja y su proyecto de Apps Script, y los anota de una vez en el registro. */
+function crearProyecto(id, dir, reg, d) {
+  console.log('→ Creando la hoja y el proyecto de "' + d.nombre + '"…');
+  const salidaCrear = clasp(['create-script', '--type', 'sheets', '--title', d.nombre], { cwd: dir, cuenta: d.cuenta });
+  const proyecto = leerJSON(path.join(dir, '.clasp.json'), {});
+  const scriptId = proyecto.scriptId || ((/script\.google\.com\/d\/([\w-]+)/.exec(salidaCrear) || [])[1]);
+  if (!scriptId) salir('No se pudo leer el id del proyecto. Salida de clasp:\n' + salidaCrear);
+  const padre = Array.isArray(proyecto.parentId) ? proyecto.parentId[0] : proyecto.parentId;
+  const sheetId = padre || ((/spreadsheets\/d\/([\w-]+)/.exec(salidaCrear) || [])[1]) || '';
+
+  // Se guarda de una vez: si algo falla después, el proyecto no queda huérfano.
+  reg.clientes[id] = { nombre: d.nombre, giro: d.giro, cuenta: d.cuenta, scriptId, sheetId, deploymentId: '', url: '', correo: d.correo, color: d.color, instalado: hoy(), version: '', actualizado: '' };
+  escribirJSON(REGISTRO, reg);
+
+}
+
 function instalar(o) {
   const id = o._[1];
   const nombre = typeof o.nombre === 'string' ? o.nombre.trim() : '';
@@ -137,35 +168,30 @@ function instalar(o) {
   // docs/ también tiene la página de Elka y su manual de marca: esos nombres no se pueden usar.
   if (['marca', 'archivos', 'recursos', 'elka', 'index'].includes(id)) salir('El id "' + id + '" está reservado para la página de Elka. Usa otro.');
   const reg = registro();
-  if (reg.clientes[id]) salir('Ya existe un negocio con el id "' + id + '". Usa otro id o "actualizar".');
+  // Si una instalación quedó a medias (proyecto creado pero sin publicar), se retoma en vez de crear otro proyecto.
+  const retomar = reg.clientes[id] && reg.clientes[id].scriptId && !reg.clientes[id].deploymentId;
+  if (reg.clientes[id] && !retomar) salir('Ya existe un negocio con el id "' + id + '". Usa otro id o "actualizar".');
   const cuenta = typeof o.cuenta === 'string' ? o.cuenta : 'default';
   const giro = typeof o.giro === 'string' ? o.giro : '';
   if (giro && !giros()[giro]) salir('No existe el tipo de negocio "' + giro + '". Mira la lista con: node herramientas/flota.mjs giros');
   const color = typeof o.color === 'string' ? o.color : (giro ? giros()[giro].color : '');
 
   const dir = path.join(TRABAJO, id);
-  if (fs.existsSync(path.join(dir, '.clasp.json'))) salir('Hay una instalación a medias en .flota/' + id + '. Revísala y bórrala antes de seguir.');
+  if (!retomar && fs.existsSync(path.join(dir, '.clasp.json'))) salir('Hay una instalación a medias en .flota/' + id + '. Revísala y bórrala antes de seguir.');
   probarAntes();
   fs.mkdirSync(dir, { recursive: true });
 
-  console.log('→ Creando la hoja y el proyecto de "' + nombre + '"…');
-  const salidaCrear = clasp(['create-script', '--type', 'sheets', '--title', nombre], { cwd: dir, cuenta });
-  const proyecto = leerJSON(path.join(dir, '.clasp.json'), {});
-  const scriptId = proyecto.scriptId || ((/script\.google\.com\/d\/([\w-]+)/.exec(salidaCrear) || [])[1]);
-  if (!scriptId) salir('No se pudo leer el id del proyecto. Salida de clasp:\n' + salidaCrear);
-  const padre = Array.isArray(proyecto.parentId) ? proyecto.parentId[0] : proyecto.parentId;
-  const sheetId = padre || ((/spreadsheets\/d\/([\w-]+)/.exec(salidaCrear) || [])[1]) || '';
-
-  // Se guarda de una vez: si algo falla después, el proyecto no queda huérfano.
-  reg.clientes[id] = { nombre, giro, cuenta, scriptId, sheetId, deploymentId: '', url: '', correo: typeof o.correo === 'string' ? o.correo : '', color, instalado: hoy(), version: '', actualizado: '' };
-  escribirJSON(REGISTRO, reg);
+  if (retomar) console.log('→ Retomando la instalación a medias de "' + reg.clientes[id].nombre + '" (mismo proyecto y misma hoja)…');
+  else crearProyecto(id, dir, reg, { nombre, giro, cuenta, color, correo: typeof o.correo === 'string' ? o.correo : '' });
+  const c = reg.clientes[id];
+  const scriptId = c.scriptId, sheetId = c.sheetId;
 
   console.log('→ Subiendo el código…');
-  prepararCarpeta(id, reg.clientes[id]);
-  clasp(['push', '--force'], { cwd: dir, cuenta });
+  prepararCarpeta(id, c);
+  clasp(['push', '--force'], { cwd: dir, cuenta: c.cuenta });
 
   console.log('→ Publicando la app…');
-  const salidaDeploy = clasp(['create-deployment', '--description', 'v' + version()], { cwd: dir, cuenta });
+  const salidaDeploy = clasp(['create-deployment', '--description', 'v' + version()], { cwd: dir, cuenta: c.cuenta });
   const deploymentId = (/AKfyc[\w-]+/.exec(salidaDeploy) || [])[0];
   if (!deploymentId) salir('No se pudo leer el id de la publicación. Salida de clasp:\n' + salidaDeploy);
 
@@ -187,9 +213,9 @@ function instalar(o) {
   console.log('       https://script.google.com/d/' + scriptId + '/edit');
   console.log('  2. Sube a GitHub la carpeta docs/. Su dirección será:');
   console.log('       ' + pagina);
-  console.log('  3. Mándale a la dueña' + (o.correo ? ' (' + o.correo + ')' : '') + ' el enlace con el código:');
+  console.log('  3. Mándale al dueño o la dueña' + (o.correo ? ' (' + o.correo + ')' : '') + ' el enlace con el código:');
   console.log('       ' + (base ? pagina + '?activar=CODIGO' : 'https://…/' + id + '/?activar=CODIGO'));
-  console.log('     Ella pone el nombre, el color, su usuario y clave y sus gastos desde el celular. No hace falta compartirle la hoja.');
+  console.log('     Desde el celular pone el nombre, el color, su usuario y clave y sus gastos. No hace falta compartirle la hoja.');
   if (sheetId) console.log('\n  La hoja (solo para ti, soporte): https://docs.google.com/spreadsheets/d/' + sheetId + '/edit');
 }
 
@@ -302,6 +328,12 @@ function generarPagina(id, c) {
     theme_color: color,
     icons: [{ src: 'icono.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }]
   });
+
+  // Página de seguimiento para los clientes: la misma de app/PaginaSeguimiento.html, apuntando a la app de este negocio.
+  fs.mkdirSync(path.join(dir, 'pedido'), { recursive: true });
+  const seg = fs.readFileSync(path.join(APP, 'PaginaSeguimiento.html'), 'utf8').split('__API__').join(c.url)
+    .replace('<title>Sigue tu pedido</title>', '<title>Tu pedido · ' + esc(c.nombre) + '</title>');
+  fs.writeFileSync(path.join(dir, 'pedido', 'index.html'), seg);
 
   fs.writeFileSync(path.join(dir, 'icono.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${color}"/><text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-family="Segoe UI, Arial, sans-serif" font-size="280" font-weight="700" fill="#fff">${inicial}</text></svg>\n`);
 }

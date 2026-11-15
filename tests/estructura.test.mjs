@@ -63,10 +63,45 @@ test('cada función que la pantalla le pide al servidor existe y es pública', (
   assert.ok(pedidas.size >= 15, 'se encontraron ' + pedidas.size + ' llamadas');
 });
 
+test('incluir_ mete los pedazos tal cual (sin que Google los interprete como HTML)', () => {
+  // Con createHtmlOutputFromFile(...).getContent() Google convertía "<" en "&lt;" dentro del JavaScript
+  // y la app se quedaba en "Cargando…" (pasó en la primera instalación de prueba).
+  const inicio = fs.readFileSync(path.join(APP, 'Inicio.gs'), 'utf8');
+  const cuerpo = inicio.slice(inicio.indexOf('function incluir_('), inicio.indexOf('\n}', inicio.indexOf('function incluir_(')));
+  assert.match(cuerpo, /getRawContent\(\)/);
+  assert.doesNotMatch(cuerpo, /createHtmlOutputFromFile/);
+});
+
 test('la plantilla solo usa incluir_ (y existe en el servidor)', () => {
   const g = cargarServidor();
   assert.equal(typeof g.incluir_, 'function');
   const idx = fs.readFileSync(path.join(APP, 'Index.html'), 'utf8');
   const marcas = [...idx.matchAll(/<\?[\s\S]*?\?>/g)].map(m => m[0]);
   assert.ok(marcas.every(m => /^<\?!= incluir_\('\w+'\) \?>$/.test(m)), marcas.join(' | '));
+});
+
+test('lo que se lee o escribe en la hoja Pedidos usa nombres de columna que existen', () => {
+  const s = cargarServidor();
+  const columnas = new Set(s.COLUMNAS || vm.runInContext('COLUMNAS', s));
+  const pedidos = fs.readFileSync(path.join(APP, 'Pedidos.gs'), 'utf8');
+  const hojas = fs.readFileSync(path.join(APP, 'Hojas.gs'), 'utf8');
+  const usados = new Set([
+    ...[...pedidos.matchAll(/'([A-ZÁÉÍÓÚ][^']{1,40})': /g)].map(m => m[1]),
+    ...[...hojas.slice(hojas.indexOf('function leerPedidos_')).slice(0, 6000).matchAll(/g\(f, '([^']+)'\)/g)].map(m => m[1])
+  ]);
+  assert.ok(usados.size > 20, 'la búsqueda encontró las columnas');
+  [...usados].forEach(c => assert.ok(columnas.has(c), 'columna que no existe en COLUMNAS: ' + c));
+});
+
+test('la versión que muestra la app es la misma del archivo VERSION y de package.json', () => {
+  const raiz = path.dirname(APP);
+  const v = fs.readFileSync(path.join(raiz, 'VERSION'), 'utf8').trim();
+  assert.match(fs.readFileSync(path.join(APP, '00_Config.gs'), 'utf8'), new RegExp("const VERSION_APP = '" + v.replace(/\./g, '\.') + "';"));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(raiz, 'package.json'), 'utf8')).version, v);
+});
+
+test('ningún .gs y .html se llaman igual (Apps Script no deja subirlos)', () => {
+  const nombres = fs.readdirSync(APP).filter(f => /\.(gs|html)$/.test(f)).map(f => f.replace(/\.(gs|html)$/, '').toLowerCase());
+  const repetidos = nombres.filter((n, i) => nombres.indexOf(n) !== i);
+  assert.deepEqual(repetidos, [], 'nombres repetidos: ' + repetidos.join(', '));
 });
