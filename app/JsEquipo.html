@@ -392,7 +392,7 @@
           ac.appendChild(boton('Editar', 'deshacer', function () { empezarEdicion(p); }));
           ac.appendChild(boton('Cancelar pedido', 'peligro', function () { abrirCancelar(p); }));
         } else if (p.estado !== 'Entregado' && p.estado !== 'Cancelado') {
-          c.appendChild(el('p', 'tarea-rastro', 'Ya está en curso: no se puede editar ni cancelar. Si hay un problema, habla con la administradora.'));
+          c.appendChild(el('p', 'tarea-rastro', 'Ya está en curso: no se puede editar ni cancelar. Si hay un problema, habla con quien administra el negocio.'));
         }
         if (p.estado !== 'Cancelado') ac.appendChild(boton('Enviar seguimiento', 'deshacer', function () { abrirSeguimiento(p, false); }));
         if (p.conEvidencia) {

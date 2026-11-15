@@ -17,8 +17,8 @@ function iniciarSesion(usuario, clave) {
     cache.put(llave, String(intentos + 1), 900);
     return { ok: false, error: 'Usuario o clave incorrectos.' };
   }
-  if (!u.activo) return { ok: false, error: 'Tu usuario está deshabilitado. Habla con la administradora.' };
-  if (!u.roles.length) return { ok: false, error: 'Tu usuario no tiene un rol asignado. Habla con la administradora.' };
+  if (!u.activo) return { ok: false, error: 'Tu usuario está deshabilitado. Habla con quien administra el negocio.' };
+  if (!u.roles.length) return { ok: false, error: 'Tu usuario no tiene un rol asignado. Habla con quien administra el negocio.' };
 
   cache.remove(llave);
   const { hoja, m } = abrirUsuarios_();
@@ -178,5 +178,41 @@ function sesion_(token) {
   const u = leerUsuarios_().lista.find(x => x.usuario === usuario);
   if (!u || !u.activo || !u.roles.length) return null;
   if (!igual_(partes[1], firmar_(cuerpo, u.clave))) return null;
+  // Las sesiones abiertas antes de "Cerrar sesión en todos los equipos" ya no sirven.
+  if (vence - DIAS_SESION * 86400000 < (sesionesDesde_()[usuario] || 0)) return null;
   return u;
+}
+
+let SESIONES_DESDE_ = null;
+function sesionesDesde_() {
+  if (!SESIONES_DESDE_) {
+    try { SESIONES_DESDE_ = JSON.parse(PropertiesService.getScriptProperties().getProperty(PROP_SESIONES) || '{}'); }
+    catch (e) { SESIONES_DESDE_ = {}; }
+  }
+  return SESIONES_DESDE_;
+}
+
+/**
+ * Cierra todas las sesiones de una persona (por ejemplo, si perdió el celular). Quien administra lo hace con
+ * cualquiera del equipo; cada quien, con las suyas. Si es la propia, se entrega una sesión nueva para este equipo.
+ */
+function cerrarSesiones(token, usuario) {
+  const u = sesion_(token);
+  if (!u) return { ok: false, sesion: false };
+  usuario = norm_(usuario || u.usuario);
+  if (usuario !== u.usuario && !esAdmin_(u)) return fallo_('Tu usuario no puede hacer esto.');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const props = PropertiesService.getScriptProperties();
+    let mapa = {};
+    try { mapa = JSON.parse(props.getProperty(PROP_SESIONES) || '{}'); } catch (e) { mapa = {}; }
+    mapa[usuario] = Date.now();
+    props.setProperty(PROP_SESIONES, JSON.stringify(mapa));
+    SESIONES_DESDE_ = mapa;
+  } finally {
+    lock.releaseLock();
+  }
+  Utilities.sleep(5); // la sesión nueva queda estrictamente después del corte
+  return usuario === u.usuario ? { ok: true, token: crearToken_(u) } : { ok: true };
 }

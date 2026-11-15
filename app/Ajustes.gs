@@ -12,7 +12,7 @@ function getAjustes(token) {
     negocio: {
       nombre: c.nombre, lema: c.lema, principal: c.principal, secundario: c.secundario,
       producto: c.terminos.producto, medios: c.medios.join(', '), pagos: c.pagos.join(', '),
-      categorias: c.categorias.join(', '), minDesc: c.minDesc, whatsapp: c.whatsapp
+      categorias: c.categorias.join(', '), minDesc: c.minDesc, whatsapp: c.whatsapp, fotoCliente: !!c.fotoCliente
     },
     usuarios: listaEquipo_()
   };

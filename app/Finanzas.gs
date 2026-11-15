@@ -141,7 +141,7 @@ function registrarMovimiento(token, d) {
     agregarMov_({
       tipo: d.tipo,
       clase: d.clase,
-      categoria: d.tipo === 'Gasto' ? d.categoria : (d.tipo === 'Retiro' ? 'Retiro de la dueña' : (limpiar_(d.categoria) || 'Venta directa')),
+      categoria: d.tipo === 'Gasto' ? d.categoria : (d.tipo === 'Retiro' ? 'Retiro para mí' : (limpiar_(d.categoria) || 'Venta directa')),
       descripcion: d.descripcion,
       valor: Math.round(Number(d.valor)), metodo: d.metodo, fecha: d.fecha
     }, u);

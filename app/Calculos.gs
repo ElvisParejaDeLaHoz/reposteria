@@ -379,6 +379,7 @@ function validarNegocio_(d) {
     out.whatsapp = String(d.whatsapp).replace(/\D/g, '');
     if (out.whatsapp && !/^\d{7,15}$/.test(out.whatsapp)) return { error: 'El WhatsApp del negocio debe tener de 7 a 15 números.' };
   }
+  if (hay('fotoCliente')) out.fotoCliente = d.fotoCliente === true || d.fotoCliente === 'Sí' ? 'Sí' : 'No';
   if (hay('minDesc')) {
     out.minDesc = Math.round(Number(d.minDesc));
     if (!(out.minDesc >= 1 && out.minDesc <= 200)) return { error: 'El mínimo de letras debe estar entre 1 y 200.' };
@@ -458,7 +459,8 @@ function vistaPublica_(p, cfg, calif) {
         camino: estado === 'Cancelado' ? 0 : (p.salioMs || 0),
         entregado: p.entregadoMs || 0
       },
-      conFoto: estado === 'Entregado' && !!p.conEvidencia
+      // La foto solo si el negocio lo activó en Ajustes: puede mostrar la cara de quien recibe o su casa.
+      conFoto: estado === 'Entregado' && !!p.conEvidencia && !!cfg.fotoCliente
     },
     calificacion: calif ? { estrellas: calif.estrellas, comentario: calif.comentario } : null
   };

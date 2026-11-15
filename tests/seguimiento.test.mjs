@@ -25,7 +25,7 @@ const PEDIDO = {
   cliente: 'Camila Rojas', para: 'Laura Pérez', telefono: '3001234567', direccion: 'Calle 10 # 5-20', total: 131313,
   descripcion: 'Torta de chocolate', vendedora: 'Ana', entregador: 'Pedro', costo: 41357, saldo: 87979, textoDedicatoria: 'Te quiero', evidencia: 'https://drive.google.com/file/d/xyz'
 };
-const CFG = { nombre: 'Angiie Repostería', principal: '#E46A9A', secundario: '#17382C', whatsapp: '573001112233', terminos: { producto: 'postre' } };
+const CFG = { nombre: 'Angiie Repostería', principal: '#E46A9A', secundario: '#17382C', whatsapp: '573001112233', fotoCliente: true, terminos: { producto: 'postre' } };
 
 test('el cliente solo recibe estado, horas y datos del negocio (nada privado)', () => {
   const v = g.vistaPublica_(PEDIDO, CFG, null);
@@ -52,11 +52,11 @@ test('el nombre del producto se entiende: femenino y plural irregular', () => {
   assert.deepEqual(g.terminoProducto_(''), { singular: 'pedido', plural: 'pedidos', femenino: false });
 });
 
-test('el enlace vence 30 días después de entregado o cancelado, nunca antes', () => {
+test('el enlace vence 5 días después de entregado o cancelado, nunca antes', () => {
   assert.equal(g.seguimientoVencido_(PEDIDO, AHORA + 400 * DIA), false, 'un pedido en curso no vence');
   const entregado = Object.assign({}, PEDIDO, { estado: 'Entregado', entregadoMs: AHORA });
-  assert.equal(g.seguimientoVencido_(entregado, AHORA + 29 * DIA), false);
-  assert.equal(g.seguimientoVencido_(entregado, AHORA + 31 * DIA), true);
+  assert.equal(g.seguimientoVencido_(entregado, AHORA + 4.9 * DIA), false);
+  assert.equal(g.seguimientoVencido_(entregado, AHORA + 5.1 * DIA), true);
 });
 
 test('código de seguimiento: 12 letras, válido solo con ese formato', () => {
@@ -158,4 +158,14 @@ test('la página no usa los parámetros que Apps Script reserva (c, sid): Google
   llamadas.forEach(q => assert.doesNotMatch(q, /(^|&)(c|sid)=/, q));
   assert.match(cuerpo('apiPublica_'), /q\.codigo/);
   assert.doesNotMatch(cuerpo('apiPublica_'), /q\.(c|sid)\b/);
+});
+
+test('la foto de la entrega no se muestra al cliente si el negocio no la activó (viene apagada)', () => {
+  const entregado = Object.assign({}, PEDIDO, { estado: 'Entregado', conEvidencia: true });
+  assert.equal(g.vistaPublica_(entregado, Object.assign({}, CFG, { fotoCliente: false }), null).pedido.conFoto, false);
+  assert.equal(g.vistaPublica_(entregado, Object.assign({}, CFG, { fotoCliente: undefined }), null).pedido.conFoto, false);
+  assert.equal(g.CONFIG_DEF ? g.CONFIG_DEF.fotoCliente : vm.runInContext('CONFIG_DEF.fotoCliente', servidor), false);
+  assert.match(cuerpo('fotoPublica_'), /leerConfig_\(\)\.fotoCliente/, 'la foto tampoco se entrega por la API');
+  assert.equal(g.validarNegocio_({ fotoCliente: true }).fotoCliente, 'Sí');
+  assert.equal(g.validarNegocio_({ fotoCliente: false }).fotoCliente, 'No');
 });

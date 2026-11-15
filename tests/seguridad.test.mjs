@@ -48,3 +48,11 @@ test('las funciones con sesión revisan el token antes de todo', () => {
     assert.match(primeras, /sesion_\(token\)/, n + ' debe empezar con sesion_(token)');
   });
 });
+
+test('"cerrar sesión en todos los equipos": la sesión revisa el corte y solo quien administra cierra las de otros', () => {
+  const sesion = cuerpo('sesion_');
+  assert.match(sesion, /sesionesDesde_\(\)\[usuario\]/);
+  const cerrar = cuerpo('cerrarSesiones');
+  assert.match(cerrar, /usuario !== u\.usuario && !esAdmin_\(u\)/);
+  assert.match(cerrar, /crearToken_\(u\)/, 'a quien cierra las suyas se le da una sesión nueva');
+});

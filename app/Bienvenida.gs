@@ -42,7 +42,7 @@ function verCodigoActivacion() {
   soloDueno_();
   const c = prepararActivacion_();
   Logger.log(c
-    ? 'Código de activación: ' + c + '\nMándale a la dueña el enlace de su app terminado en ?activar=' + c + ' (o dale el código: en la pantalla de entrada toca "Activar mi app").'
+    ? 'Código de activación: ' + c + '\nMándale al dueño o la dueña el enlace de su app terminado en ?activar=' + c + ' (o dale el código: en la pantalla de entrada toca "Activar mi app").'
     : 'Esta app ya está activada: hay una persona activa que la administra.');
 }
 

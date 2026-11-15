@@ -148,6 +148,15 @@
         campos.whatsapp = ajTexto(n.whatsapp ? String(n.whatsapp).replace(/^57(?=3\d{9}$)/, '') : '', 15, 'tel');
         campos.whatsapp.inputMode = 'tel';
         p2.appendChild(ajCampo('WhatsApp del negocio', campos.whatsapp, 'Sale en la página de seguimiento de tus clientes, para que te vuelvan a pedir y te recomienden. Ej. 3001234567.'));
+        var cFoto = el('div', 'campo'), lFoto = el('label', 'check');
+        campos.fotoCliente = el('input');
+        campos.fotoCliente.type = 'checkbox';
+        campos.fotoCliente.checked = !!n.fotoCliente;
+        lFoto.appendChild(campos.fotoCliente);
+        lFoto.appendChild(el('span', null, 'Mostrar la foto de la entrega en la página de seguimiento del cliente'));
+        cFoto.appendChild(lFoto);
+        cFoto.appendChild(el('p', 'ayuda', 'Así tu cliente la puede compartir en su estado. En la foto puede salir la cara de quien recibe o su casa: actívalo solo si tus clientes están de acuerdo.'));
+        p2.appendChild(cFoto);
         campos.minDesc = ajTexto(n.minDesc, 3, 'number');
         campos.minDesc.min = 1; campos.minDesc.max = 200; campos.minDesc.inputMode = 'numeric';
         p2.appendChild(ajCampo('Mínimo de letras en la descripción del pedido', campos.minDesc, 'En un restaurante, 3 basta ("1 corriente"). En una floristería, 20 obliga a dar detalles.'));
@@ -165,7 +174,8 @@
           var datos = {
             nombre: campos.nombre.value, lema: campos.lema.value, principal: colores.principal, secundario: colores.secundario,
             producto: prodAj.leer(), medios: campos.medios.value, pagos: campos.pagos.value,
-            categorias: campos.categorias.value, minDesc: Number(campos.minDesc.value), whatsapp: campos.whatsapp.value
+            categorias: campos.categorias.value, minDesc: Number(campos.minDesc.value), whatsapp: campos.whatsapp.value,
+            fotoCliente: campos.fotoCliente.checked
           };
           g.disabled = true; g.textContent = 'Guardando…';
           api('guardarNegocio', [datos]).then(function (r) {
@@ -238,6 +248,13 @@
           ? 'Mínimo 6 caracteres. Dísela a la persona; después la puede cambiar contigo.'
           : (x.sinClave ? 'Esta persona no tiene clave: escríbele una para que pueda entrar.' : 'Déjala vacía para no cambiarla. Si la cambias, se cierra su sesión.');
         $('#usr-bloque-activo').hidden = nuevo;
+        $('#usr-bloque-sesiones').hidden = nuevo;
+        var yo = !nuevo && x.usuario === AJ.datos.yo;
+        $('#usr-cerrar-sesiones').disabled = false;
+        $('#usr-cerrar-sesiones').textContent = yo ? 'Cerrar mi sesión en los demás equipos' : 'Cerrar su sesión en todos los equipos';
+        $('#usr-sesiones-ayuda').textContent = yo
+          ? 'Si perdiste un celular o entraste en un equipo ajeno. Aquí sigues adentro; en los demás tendrás que volver a entrar.'
+          : 'Si perdió el celular o entró en un equipo ajeno. Tendrá que volver a entrar con su usuario y clave.';
         $('#usr-activo').checked = nuevo || x.activo;
         var cont = $('#usr-roles');
         cont.textContent = '';
@@ -268,6 +285,25 @@
       });
 
       $('#usr-volver').addEventListener('click', function () { dlgUsuario.close(); });
+      $('#usr-cerrar-sesiones').addEventListener('click', function () {
+        var x = AJ.editando, b = this;
+        if (!x) return;
+        var yo = x.usuario === AJ.datos.yo;
+        if (!confirm(yo ? '¿Cerrar tu sesión en todos los demás equipos?' : '¿Cerrar la sesión de ' + x.nombre + ' en todos sus equipos?')) return;
+        b.disabled = true; b.textContent = 'Cerrando…';
+        errorUsuario('');
+        api('cerrarSesiones', [x.usuario]).then(function (r) {
+          b.disabled = false;
+          b.textContent = yo ? 'Cerrar mi sesión en los demás equipos' : 'Cerrar su sesión en todos los equipos';
+          if (!r || !r.ok) { errorUsuario((r && r.error) || 'No se pudo cerrar la sesión.'); return; }
+          if (r.token) { S.token = r.token; guardarToken(r.token); }
+          dlgUsuario.close();
+          toast(yo ? 'Listo. Tu sesión quedó cerrada en los demás equipos.' : 'Listo. ' + x.nombre.split(' ')[0] + ' tendrá que volver a entrar.');
+        }).catch(function (e) {
+          b.disabled = false;
+          if (e && e.message !== 'sesion') errorUsuario('No se pudo cerrar la sesión. Revisa tu conexión.');
+        });
+      });
       $('#form-usuario').addEventListener('submit', function (e) {
         e.preventDefault();
         var x = AJ.editando, nuevo = !x;

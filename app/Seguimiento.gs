@@ -125,7 +125,7 @@ function olvidarSeguimiento_(codigo) {
 function fotoPublica_(codigo) {
   if (excedeLimite_(codigo, 'seg-foto', 30)) return { ok: false, ocupado: true };
   const p = pedidoPorCodigo_(codigo);
-  if (!p || p.estado !== 'Entregado' || seguimientoVencido_(p, Date.now())) return { ok: false, error: 'No hay foto para este pedido.' };
+  if (!p || p.estado !== 'Entregado' || seguimientoVencido_(p, Date.now()) || !leerConfig_().fotoCliente) return { ok: false, error: 'No hay foto para este pedido.' };
   const trozo = /\/d\/([^\/?#]+)/.exec(p.evidencia || '');
   if (!trozo) return { ok: false, error: 'No hay foto para este pedido.' };
   const blob = DriveApp.getFileById(trozo[1]).getBlob();

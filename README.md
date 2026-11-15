@@ -45,10 +45,12 @@ La herramienta crea la hoja y el proyecto, sube el código, publica la app, guar
 
 La persona dueña abre el enlace y en 3 pasos pone el nombre del negocio, qué vende (con un ejemplo en vivo de cómo se verá), su color y logo, su nombre, sexo, usuario y clave, y sus gastos fijos. Con el sexo de cada persona la app escribe bien su cargo (Vendedora o Vendedor). El código sirve una sola vez. **No hace falta compartirle la hoja**: el equipo, los datos del negocio y el logo los cambia desde la app en **Ajustes** (enlace en la cabecera). La hoja queda para soporte. Después puede agregar la app a la pantalla de inicio del celular.
 
-**Seguimiento para el cliente.** Al guardar un pedido, la app ofrece mandarle al cliente su enlace (`…/<id>/pedido/?c=<código>`). Ahí ve cómo va su pedido. Cuando lo recibe, puede calificarlo y compartir una tarjeta con la foto en su estado de WhatsApp. La página solo muestra el estado y las horas: nada de teléfonos, direcciones ni valores. El estado se guarda en memoria 5 minutos; si hay mucho tráfico, el cliente ve un mensaje amable y la página reintenta sola. Las calificaciones quedan en la hoja **Calificaciones** y en **Ventas**. Para que el cliente pueda volver a pedir, el negocio pone el WhatsApp del negocio en **Ajustes**.
+**Seguimiento para el cliente.** Al guardar un pedido, la app ofrece mandarle al cliente su enlace (`…/<id>/pedido/?c=<código>`). Ahí ve cómo va su pedido. Cuando lo recibe, puede calificarlo y compartir una tarjeta con la foto en su estado de WhatsApp. La página solo muestra el estado y las horas: nada de teléfonos, direcciones ni valores. El enlace deja de funcionar 5 días después de la entrega. El estado se guarda en memoria 5 minutos; si hay mucho tráfico, el cliente ve un mensaje amable y la página reintenta sola. Las calificaciones quedan en la hoja **Calificaciones** y en **Ventas**. Para que el cliente pueda volver a pedir, el negocio pone el WhatsApp del negocio en **Ajustes**.
 
 - Si se pierde el código: en el editor, ejecutar `verCodigoActivacion`.
-- Si alguien olvida su clave: escribir una clave nueva, sin cifrar, en su fila de la hoja **Usuarios**. Al entrar con ella se cifra sola.
+- Si alguien olvida su clave: quien administra le pone una nueva en **Ajustes → Mi equipo → Editar**. Solo si nadie puede entrar (por ejemplo, la única persona que administra), escribir una clave nueva sin cifrar en su fila de la hoja **Usuarios**: al entrar se cifra sola.
+- Si alguien pierde el celular: **Ajustes → Mi equipo → Editar → Cerrar su sesión en todos los equipos**.
+- La foto de la entrega **no** se muestra al cliente salvo que el negocio lo active en **Ajustes** (puede salir la cara de quien recibe o su casa).
 - Los avisos por Telegram siguen en la hoja **Configuración** (son de soporte).
 
 ## Publicar una mejora para todos

@@ -28,7 +28,7 @@ function guardarPedido(token, p) {
   if (u.roles.indexOf('Vendedora') < 0) return fallo_('Tu usuario no puede tomar pedidos.');
   const error = validar_(p);
   if (error) return fallo_(error);
-  if (excedeLimite_(u.usuario, 'nuevo', LIMITE_PEDIDOS_HORA)) return fallo_('Registraste demasiados pedidos en poco tiempo. Espera un rato o avisa a la administradora.');
+  if (excedeLimite_(u.usuario, 'nuevo', LIMITE_PEDIDOS_HORA)) return fallo_('Registraste demasiados pedidos en poco tiempo. Espera un rato o avisa a quien administra el negocio.');
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -258,7 +258,7 @@ function aplicarAccion_(u, hoja, m, p, accion, datos) {
       if (!tiene('Vendedora') && !admin) return sin();
       if (est === 'Entregado') return fallo_('Este pedido ya fue entregado. No se puede cancelar.', true);
       if (est !== 'Pendiente' && !admin) {
-        return fallo_('El decorador ya empezó este pedido. Solo la administradora puede cancelarlo.', true);
+        return fallo_('El decorador ya empezó este pedido. Solo quien administra el negocio puede cancelarlo.', true);
       }
       const motivo = limpiar_(datos.motivo);
       if (motivo.length < 3) return fallo_('Escribe el motivo de la cancelación.');

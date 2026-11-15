@@ -13,7 +13,7 @@
  */
 
 /* Versión del código: debe ser igual al archivo VERSION (lo revisan las pruebas). Se ve en Ajustes. */
-const VERSION_APP = '2.1.2';
+const VERSION_APP = '2.2.0';
 
 const NOMBRE_LIBRO = 'Mis pedidos';
 /* Nombres de fábrica (actual y de versiones anteriores): no cuentan como nombre del negocio. */
@@ -40,6 +40,8 @@ const MAX_LOGO = 1.5 * 1024 * 1024;
 const DIAS_SESION = 14;
 
 const MAX_INTENTOS = 5;
+/* Desde cuándo vale la sesión de cada persona ({usuario: ms}): "Cerrar sesión en todos los equipos". */
+const PROP_SESIONES = 'SESIONES_DESDE';
 
 const HOJA_CONFIG = 'Configuración';
 
@@ -62,7 +64,8 @@ const CONFIG_DEF = {
   categorias: ['Insumos y materiales', 'Empaques', 'Transporte', 'Publicidad', 'Arriendo', 'Servicios públicos',
     'Internet y teléfono', 'Nómina', 'Mantenimiento', 'Impuestos', 'Otros'],
   sueldo: 0,
-  whatsapp: ''
+  whatsapp: '',
+  fotoCliente: false
 };
 
 const ESTADOS = ['Pendiente', 'En preparación', 'Listo', 'En camino', 'Entregado', 'Cancelado'];
@@ -96,7 +99,8 @@ const MIN_CLAVE = 6;
 const ETIQUETAS_NEGOCIO = {
   nombre: 'Nombre del negocio', lema: 'Frase de bienvenida', principal: 'Color principal', secundario: 'Color secundario',
   producto: 'Nombre del producto', medios: 'Medios de venta', pagos: 'Métodos de pago',
-  categorias: 'Categorías de gastos', minDesc: 'Mínimo de letras en la descripción', whatsapp: 'WhatsApp del negocio'
+  categorias: 'Categorías de gastos', minDesc: 'Mínimo de letras en la descripción', whatsapp: 'WhatsApp del negocio',
+  fotoCliente: 'Mostrar foto de la entrega al cliente'
 };
 
 /* Seguimiento del pedido para el cliente: página pública con estado, calificación y "recomiéndame". */
@@ -108,7 +112,7 @@ const SEG_MEMORIA = 300; // segundos que se guarda en memoria el estado de un pe
 
 const LIMITE_SEGUIMIENTO_MIN = 120; // consultas por minuto que llegan a la hoja; por encima, "estamos a toda máquina"
 
-const DIAS_SEGUIMIENTO = 30; // días después de entregado (o cancelado) en que el enlace sigue funcionando
+const DIAS_SEGUIMIENTO = 5; // días después de entregado (o cancelado) en que el enlace sigue funcionando
 
 const FILAS_CONFIG = [
   ['Nombre del negocio', CONFIG_DEF.nombre, 'Sale en la pantalla de entrada y en la pestaña del navegador.'],
@@ -129,6 +133,7 @@ const FILAS_CONFIG = [
   ['Mínimo de letras en la descripción', String(CONFIG_DEF.minDesc), 'Cuántas letras pide como mínimo la descripción del pedido. En un restaurante, 3 basta ("1 corriente").'],
   ['Categorías de gastos', CONFIG_DEF.categorias.join(', '), 'En qué se va la plata. Sepáralas con comas (máximo 30). Sirven para ver en Finanzas dónde se gasta más.'],
   ['WhatsApp del negocio', '', 'Número con el que te escriben los clientes (ej. 3001234567). Sale en la página de seguimiento del pedido para que te vuelvan a pedir y te recomienden.'],
+  ['Mostrar foto de la entrega al cliente', 'No', 'Sí o No. Si es Sí, el cliente ve la foto de la entrega en su página de seguimiento y la puede compartir. Puede salir la cara de quien recibe o su casa: actívalo solo si tus clientes están de acuerdo.'],
   ['Sueldo que quiero ganarme', String(CONFIG_DEF.sueldo), 'Cuánto quieres ganarte tú al mes. Con esto, Finanzas te dice cuánto vender para pagar todo y además tu sueldo. También se cambia desde la app.'],
   ['Telegram: activo', 'No', 'Escribe Sí para mandar avisos por Telegram. Pasos: 1) En Telegram abre @BotFather, escribe /newbot y copia el token. 2) Crea un grupo, agrega el bot y a tu equipo (o usa chats personales). 3) Pega el token y los números de chat aquí abajo. 4) En el editor de Apps Script ejecuta buscarChatsTelegram para ver los números y probarTelegram para probar.'],
   ['Telegram: token del bot', '', 'El token que te da @BotFather. No compartas esta hoja con nadie más.'],
