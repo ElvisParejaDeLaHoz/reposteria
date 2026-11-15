@@ -239,6 +239,8 @@ function actualizar(o) {
       c.version = version();
       c.actualizado = hoy();
       escribirJSON(REGISTRO, reg);
+      // Las páginas de docs/ (app y seguimiento) son copias: se regeneran para que no queden con código viejo.
+      generarPagina(id, c);
       bien.push(id);
       console.log('listo');
     } catch (e) {
@@ -248,6 +250,7 @@ function actualizar(o) {
   });
 
   console.log('\nActualizados: ' + bien.length + ' de ' + ids.length + ' (versión ' + version() + ')');
+  if (bien.length) console.log('Páginas regeneradas en docs/: súbelas a GitHub (git add docs && git commit && git push).');
   mal.forEach(([id, err]) => console.log('  ✖ ' + id + ': ' + err));
   if (mal.length) process.exitCode = 1;
 }
